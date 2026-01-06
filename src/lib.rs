@@ -6,6 +6,27 @@ use std::time::Duration;
 use thiserror::Error;
 use crossbeam_queue::SegQueue;
 
+/// 命令执行器 trait | Command executor trait
+///
+/// 抽象命令执行的接口，支持不同的运行时实现（std::process、tokio、async-std 等）。
+/// Defines the interface for command execution, supporting different runtime implementations.
+pub trait CommandExecutor: Send + Sync {
+    /// 执行命令并返回输出 | Execute a command and return output
+    fn execute(&self, config: &CommandConfig) -> Result<Output, ExecuteError>;
+}
+
+/// 标准库命令执行器 | Standard library command executor
+///
+/// 使用 std::process::Command 实现，基于线程同步的同步执行。
+/// Implementation using std::process::Command with synchronous thread-based execution.
+pub struct StdCommandExecutor;
+
+impl CommandExecutor for StdCommandExecutor {
+    fn execute(&self, config: &CommandConfig) -> Result<Output, ExecuteError> {
+        execute_command(config)
+    }
+}
+
 /// CommandConfig 表示要执行的外部命令及其执行参数。
 ///
 /// 字段：
@@ -129,6 +150,8 @@ pub struct CommandPool {
 }
 
 /// `CommandPool` 是一个简单的命令队列，支持多线程生产任务并由后台执行器消费执行。
+///
+/// 默认使用 `StdCommandExecutor`。如需使用其他执行器，可创建并传入自定义实现。
 ///
 /// 使用示例：
 /// ```ignore
@@ -255,6 +278,70 @@ impl CommandPool {
     pub fn execute_task(&self, config: &CommandConfig) -> Result<Output, ExecuteError> {
         execute_command(config)
     }
+
+    /// 使用自定义执行器启动执行器 | Start executor with custom executor
+    ///
+    /// 允许用户指定自己的 CommandExecutor 实现，从而支持不同的运行时。
+    /// Allows users to provide a custom CommandExecutor implementation for different runtimes.
+    pub fn start_executor_with_executor<E: CommandExecutor + 'static>(
+        &self,
+        interval: Duration,
+        executor: Arc<E>,
+    ) {
+        let workers = std::thread::available_parallelism()
+            .map(|n| n.get())
+            .unwrap_or(4);
+        self.start_executor_with_workers_and_executor(interval, workers, executor);
+    }
+
+    /// 使用自定义执行器和工作线程数启动执行器 | Start executor with custom executor and worker count
+    pub fn start_executor_with_workers_and_executor<E: CommandExecutor + 'static>(
+        &self,
+        interval: Duration,
+        workers: usize,
+        executor: Arc<E>,
+    ) {
+        for _ in 0..workers {
+            let pool_clone = self.clone();
+            let executor = executor.clone();
+            let interval = interval;
+            thread::spawn(move || {
+                loop {
+                    while let Some(task) = pool_clone.pop_task() {
+                        let _ = executor.execute(&task);
+                    }
+                    thread::sleep(interval);
+                }
+            });
+        }
+    }
+
+    /// 使用自定义执行器和并发限制启动执行器 | Start executor with custom executor and concurrency limit
+    pub fn start_executor_with_executor_and_limit<E: CommandExecutor + 'static>(
+        &self,
+        interval: Duration,
+        workers: usize,
+        limit: usize,
+        executor: Arc<E>,
+    ) {
+        let sem = Arc::new(Semaphore::new(limit));
+        for _ in 0..workers {
+            let pool_clone = self.clone();
+            let executor = executor.clone();
+            let sem = sem.clone();
+            let interval = interval;
+            thread::spawn(move || {
+                loop {
+                    while let Some(task) = pool_clone.pop_task() {
+                        sem.acquire();
+                        let _ = executor.execute(&task);
+                        sem.release();
+                    }
+                    thread::sleep(interval);
+                }
+            });
+        }
+    }
 }
 
 
@@ -360,9 +447,7 @@ impl CommandPoolSeg {
         }
     }
 
-    /// 启动限制并发的执行器 | Start executor with concurrency limit
-    ///
-    /// 使用信号量限制同时执行的外部进程数量，防止资源耗尽。
+    /// 限制同时执行的外部进程数量为 `limit` 的工作线程启动函数。
     pub fn start_executor_with_workers_and_limit(&self, interval: Duration, workers: usize, limit: usize) {
         let sem = Arc::new(Semaphore::new(limit));
         for _ in 0..workers {
@@ -377,6 +462,67 @@ impl CommandPoolSeg {
                         sem.acquire();
                         let _ = execute_command(&task);
                         // 释放信号量许可证 | Release semaphore permit
+                        sem.release();
+                    }
+                    thread::sleep(interval);
+                }
+            });
+        }
+    }
+
+    /// 使用自定义执行器启动执行器 | Start executor with custom executor
+    pub fn start_executor_with_executor<E: CommandExecutor + 'static>(
+        &self,
+        interval: Duration,
+        executor: Arc<E>,
+    ) {
+        let workers = std::thread::available_parallelism()
+            .map(|n| n.get())
+            .unwrap_or(4);
+        self.start_executor_with_workers_and_executor(interval, workers, executor);
+    }
+
+    /// 使用自定义执行器和工作线程数启动执行器 | Start executor with custom executor and worker count
+    pub fn start_executor_with_workers_and_executor<E: CommandExecutor + 'static>(
+        &self,
+        interval: Duration,
+        workers: usize,
+        executor: Arc<E>,
+    ) {
+        for _ in 0..workers {
+            let pool = self.clone();
+            let executor = executor.clone();
+            let interval = interval;
+            thread::spawn(move || {
+                loop {
+                    while let Some(task) = pool.pop_task() {
+                        let _ = executor.execute(&task);
+                    }
+                    thread::sleep(interval);
+                }
+            });
+        }
+    }
+
+    /// 使用自定义执行器和并发限制启动执行器 | Start executor with custom executor and concurrency limit
+    pub fn start_executor_with_executor_and_limit<E: CommandExecutor + 'static>(
+        &self,
+        interval: Duration,
+        workers: usize,
+        limit: usize,
+        executor: Arc<E>,
+    ) {
+        let sem = Arc::new(Semaphore::new(limit));
+        for _ in 0..workers {
+            let pool = self.clone();
+            let executor = executor.clone();
+            let sem = sem.clone();
+            let interval = interval;
+            thread::spawn(move || {
+                loop {
+                    while let Some(task) = pool.pop_task() {
+                        sem.acquire();
+                        let _ = executor.execute(&task);
                         sem.release();
                     }
                     thread::sleep(interval);
