@@ -350,7 +350,7 @@ impl CommandPool {
 ///
 /// 内部函数，用于启动子进程并处理超时。使用 wait-timeout crate 在同一线程中进行超时等待，
 /// 避免为每个任务生成额外的等待线程，提高性能和降低系统开销。
-fn execute_command(config: &CommandConfig) -> Result<Output, ExecuteError> {
+pub(crate) fn execute_command(config: &CommandConfig) -> Result<Output, ExecuteError> {
     // 启动子进程，重定向 stdout 和 stderr | Spawn child with piped stdout/stderr
     let mut cmd = Command::new(&config.program);
     cmd.args(&config.args);
@@ -538,18 +538,18 @@ impl CommandPoolSeg {
 ///
 /// 基于 `Mutex` 和 `Condvar` 实现，用于轻量级的并发执行控制。
 /// 限制同时执行的外部子进程数量，防止系统资源耗尽。
-pub struct Semaphore {
+pub(crate) struct Semaphore {
     inner: Arc<(Mutex<usize>, Condvar)>,
 }
 
 impl Semaphore {
     /// 创建一个信号量，初始许可证数为 `permits` | Create a semaphore with initial permits
-    pub fn new(permits: usize) -> Self {
+    pub(crate) fn new(permits: usize) -> Self {
         Self { inner: Arc::new((Mutex::new(permits), Condvar::new())) }
     }
 
     /// 获取一个许可证，若许可证数为 0 则阻塞等待 | Acquire a permit, blocking if none available
-    pub fn acquire(&self) {
+    pub(crate) fn acquire(&self) {
         let (lock, cvar) = &*self.inner;
         let mut cnt = lock.lock().expect("semaphore lock");
         // 自旋等待直到有可用许可证 | Spin-wait until a permit is available
@@ -560,7 +560,7 @@ impl Semaphore {
     }
 
     /// 释放一个许可证，唤醒等待的线程 | Release a permit and wake up waiting threads
-    pub fn release(&self) {
+    pub(crate) fn release(&self) {
         let (lock, cvar) = &*self.inner;
         let mut cnt = lock.lock().expect("semaphore lock");
         *cnt += 1;
