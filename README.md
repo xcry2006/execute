@@ -40,16 +40,6 @@ pool.start_executor(Duration::from_millis(100));
 
 实现 `CommandExecutor` trait 即可将自定义执行器注入到命令池（例如在 `tokio` 里创建异步执行逻辑并在同步 trait 中 `block_on`，或在专用线程中运行运行时）。示例请见 `EXECUTOR_CUSTOM.md`。
 
-文档
-----
-
-本地生成：
-
-```bash
-cargo doc --no-deps
-xdg-open target/doc/execute/index.html
-```
-
 贡献
 ----
 
@@ -59,7 +49,3 @@ xdg-open target/doc/execute/index.html
 ---
 
 该仓库采用 MIT 许可证，详见 `LICENSE`。
-
-----
-
-如果你希望在发布到 crates.io 前我帮你生成 `Cargo.toml` 的 badge、添加 GitHub Actions、或写一个发布说明，我可以继续帮你。
