@@ -1,1 +1,9 @@
+/.idea/
 /target
+*.log
+perf.data
+perf.data.old
+perf_report.txt
+.DS_Store
+*.swp
+*~
