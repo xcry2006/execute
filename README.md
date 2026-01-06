@@ -38,7 +38,9 @@ pool.start_executor(Duration::from_millis(100));
 自定义执行器
 --------------
 
-实现 `CommandExecutor` trait 即可将自定义执行器注入到命令池（例如在 `tokio` 里创建异步执行逻辑并在同步 trait 中 `block_on`，或在专用线程中运行运行时）。示例请见 `EXECUTOR_CUSTOM.md`。
+实现 `CommandExecutor` trait 即可将自定义执行器注入到命令池（例如在 `tokio` 里创建异步执行逻辑并在同步 trait 中 `block_on`，或在专用线程中运行运行时）。
+
+详细示例与指南请见 [自定义执行器文档](EXECUTOR_CUSTOM.md)。
 
 贡献
 ----
