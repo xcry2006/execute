@@ -29,14 +29,6 @@ pub struct CommandPool {
 /// ```
 impl CommandPool {
     /// # 创建一个CommandPool命令池
-    ///
-    /// # 示例
-    /// ```ignore
-    /// use execute::CommandPool;
-    ///
-    /// let pool = CommandPool::new();
-    /// ```
-    ///
     pub fn new() -> Self {
         Self {
             tasks: Arc::new(Mutex::new(VecDeque::new())),
@@ -117,7 +109,6 @@ impl CommandPool {
     pub fn start_executor_with_workers(&self, interval: Duration, workers: usize) {
         for _ in 0..workers {
             let pool_clone = self.clone();
-            let interval = interval;
             thread::spawn(move || loop {
                 while let Some(task) = pool_clone.pop_task() {
                     let _ = pool_clone.execute_task(&task);
@@ -138,7 +129,6 @@ impl CommandPool {
         for _ in 0..workers {
             let pool_clone = self.clone();
             let sem = sem.clone();
-            let interval = interval;
             thread::spawn(move || loop {
                 while let Some(task) = pool_clone.pop_task() {
                     let _permit = sem.acquire_guard();
@@ -188,7 +178,6 @@ impl CommandPool {
         for _ in 0..workers {
             let pool_clone = self.clone();
             let executor = executor.clone();
-            let interval = interval;
             thread::spawn(move || loop {
                 while let Some(task) = pool_clone.pop_task() {
                     let _ = executor.execute(&task);
@@ -211,7 +200,6 @@ impl CommandPool {
             let pool_clone = self.clone();
             let executor = executor.clone();
             let sem = sem.clone();
-            let interval = interval;
             thread::spawn(move || loop {
                 while let Some(task) = pool_clone.pop_task() {
                     let _permit = sem.acquire_guard();
@@ -220,6 +208,12 @@ impl CommandPool {
                 thread::sleep(interval);
             });
         }
+    }
+}
+
+impl Default for CommandPool {
+    fn default() -> Self {
+        Self::new()
     }
 }
 

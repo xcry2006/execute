@@ -1,5 +1,4 @@
 use std::process::{Command, Output, Stdio};
-use std::time::Duration;
 
 use crate::{CommandConfig, ExecuteError};
 
@@ -47,7 +46,7 @@ pub(crate) fn execute_command(config: &CommandConfig) -> Result<Output, ExecuteE
             use wait_timeout::ChildExt;
             match child
                 .wait_timeout(timeout)
-                .map_err(|e| ExecuteError::Io(std::io::Error::new(std::io::ErrorKind::Other, e)))?
+                .map_err(|e| ExecuteError::Io(std::io::Error::other(e)))?
             {
                 Some(_) => {
                     // 子进程在超时前正常退出，收集输出 | Child exited within timeout; collect output
@@ -73,6 +72,7 @@ pub(crate) fn execute_command(config: &CommandConfig) -> Result<Output, ExecuteE
 #[cfg(test)]
 mod tests {
     use super::*;
+    use std::time::Duration;
 
     #[test]
     #[cfg(unix)]

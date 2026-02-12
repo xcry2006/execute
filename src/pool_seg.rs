@@ -54,7 +54,6 @@ impl CommandPoolSeg {
     pub fn start_executor_with_workers(&self, interval: Duration, workers: usize) {
         for _ in 0..workers {
             let pool = self.clone();
-            let interval = interval;
             thread::spawn(move || loop {
                 while let Some(task) = pool.pop_task() {
                     let _ = execute_command(&task);
@@ -75,7 +74,6 @@ impl CommandPoolSeg {
         for _ in 0..workers {
             let pool = self.clone();
             let sem = sem.clone();
-            let interval = interval;
             thread::spawn(move || loop {
                 while let Some(task) = pool.pop_task() {
                     let _permit = sem.acquire_guard();
@@ -108,7 +106,6 @@ impl CommandPoolSeg {
         for _ in 0..workers {
             let pool = self.clone();
             let executor = executor.clone();
-            let interval = interval;
             thread::spawn(move || loop {
                 while let Some(task) = pool.pop_task() {
                     let _ = executor.execute(&task);
@@ -131,7 +128,6 @@ impl CommandPoolSeg {
             let pool = self.clone();
             let executor = executor.clone();
             let sem = sem.clone();
-            let interval = interval;
             thread::spawn(move || loop {
                 while let Some(task) = pool.pop_task() {
                     let _permit = sem.acquire_guard();
@@ -140,6 +136,12 @@ impl CommandPoolSeg {
                 thread::sleep(interval);
             });
         }
+    }
+}
+
+impl Default for CommandPoolSeg {
+    fn default() -> Self {
+        Self::new()
     }
 }
 

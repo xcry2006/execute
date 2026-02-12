@@ -14,7 +14,7 @@ struct TokioWithTimeoutExecutor {
 impl TokioWithTimeoutExecutor {
     fn new() -> Result<Self, ExecuteError> {
         let rt = Runtime::new().map_err(|e| {
-            ExecuteError::Io(std::io::Error::new(std::io::ErrorKind::Other, e))
+            ExecuteError::Io(std::io::Error::other(e))
         })?;
         Ok(Self { rt })
     }

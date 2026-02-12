@@ -32,15 +32,6 @@ impl Semaphore {
         *cnt -= 1;
     }
 
-    /// 释放一个许可证，唤醒等待的线程 | Release a permit and wake up waiting threads
-    pub(crate) fn release(&self) {
-        let (lock, cvar) = &*self.inner;
-        let mut cnt = lock.lock().unwrap_or_else(|e| e.into_inner());
-        *cnt += 1;
-        // 通知一个等待线程 | Notify one waiting thread
-        cvar.notify_one();
-    }
-
     /// 获取一个 RAII 守卫，在生命周期结束时自动释放许可证。
     pub(crate) fn acquire_guard(&self) -> SemaphoreGuard {
         // 复用 acquire 的阻塞获取逻辑
