@@ -19,9 +19,10 @@
 
 ```toml
 [dependencies]
+execute = "0.1"
 crossbeam-queue = "0.3"
 wait-timeout = "0.2"
-thiserror = "1.0"
+thiserror = "2.0.17"
 ```
 
 示例（使用标准库执行器）:
@@ -34,6 +35,11 @@ let pool = CommandPool::new();
 pool.push_task(CommandConfig::new("echo", vec!["hello".to_string()]));
 pool.start_executor(Duration::from_millis(100));
 ```
+
+更多示例
+--------
+
+- Tokio 集成与超时控制示例：见 `examples/tokio_integration.rs`
 
 自定义执行器
 --------------
