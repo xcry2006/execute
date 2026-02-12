@@ -13,9 +13,7 @@ struct TokioWithTimeoutExecutor {
 
 impl TokioWithTimeoutExecutor {
     fn new() -> Result<Self, ExecuteError> {
-        let rt = Runtime::new().map_err(|e| {
-            ExecuteError::Io(std::io::Error::other(e))
-        })?;
+        let rt = Runtime::new().map_err(|e| ExecuteError::Io(std::io::Error::other(e)))?;
         Ok(Self { rt })
     }
 }
@@ -31,12 +29,10 @@ impl CommandExecutor for TokioWithTimeoutExecutor {
             }
 
             match config.timeout() {
-                Some(dur) => {
-                    timeout(dur, cmd.output())
-                        .await
-                        .map_err(|_| ExecuteError::Timeout(dur))?
-                        .map_err(ExecuteError::Io)
-                }
+                Some(dur) => timeout(dur, cmd.output())
+                    .await
+                    .map_err(|_| ExecuteError::Timeout(dur))?
+                    .map_err(ExecuteError::Io),
                 None => cmd.output().await.map_err(ExecuteError::Io),
             }
         })
@@ -53,20 +49,13 @@ fn main() -> Result<(), ExecuteError> {
         vec!["hello from tokio".to_string()],
     ));
     pool.push_task(
-        CommandConfig::new("sleep", vec!["1".to_string()])
-            .with_timeout(Duration::from_millis(200)),
+        CommandConfig::new("sleep", vec!["1".to_string()]).with_timeout(Duration::from_millis(200)),
     );
 
     // 使用自定义 Tokio 执行器，4 个工作线程，最多 2 个并发执行外部命令
-    pool.start_executor_with_executor_and_limit(
-        Duration::from_millis(50),
-        4,
-        2,
-        executor,
-    );
+    pool.start_executor_with_executor_and_limit(Duration::from_millis(50), 4, 2, executor);
 
     // 简单等待一段时间以便任务运行完成
     std::thread::sleep(Duration::from_secs(2));
     Ok(())
 }
-

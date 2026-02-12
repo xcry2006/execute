@@ -16,7 +16,9 @@ pub(crate) struct SemaphoreGuard {
 impl Semaphore {
     /// 创建一个信号量，初始许可证数为 `permits` | Create a semaphore with initial permits
     pub(crate) fn new(permits: usize) -> Self {
-        Self { inner: Arc::new((Mutex::new(permits), Condvar::new())) }
+        Self {
+            inner: Arc::new((Mutex::new(permits), Condvar::new())),
+        }
     }
 
     /// 获取一个许可证，若许可证数为 0 则阻塞等待 | Acquire a permit, blocking if none available
@@ -25,9 +27,7 @@ impl Semaphore {
         let mut cnt = lock.lock().unwrap_or_else(|e| e.into_inner());
         // 自旋等待直到有可用许可证 | Spin-wait until a permit is available
         while *cnt == 0 {
-            cnt = cvar
-                .wait(cnt)
-                .unwrap_or_else(|e| e.into_inner());
+            cnt = cvar.wait(cnt).unwrap_or_else(|e| e.into_inner());
         }
         *cnt -= 1;
     }
@@ -50,4 +50,3 @@ impl Drop for SemaphoreGuard {
         cvar.notify_one();
     }
 }
-

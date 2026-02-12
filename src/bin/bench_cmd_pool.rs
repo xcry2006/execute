@@ -48,7 +48,9 @@ fn bench_push_multi_thread() {
                 }
             }));
         }
-        for h in handles { h.join().unwrap(); }
+        for h in handles {
+            h.join().unwrap();
+        }
         while pool.pop_task().is_some() {}
         let dur = start.elapsed();
         println!("multi_thread run {:3} took {:?}", i + 1, dur);
@@ -70,7 +72,9 @@ fn bench_push_multi_thread_seg() {
                 }
             }));
         }
-        for h in handles { h.join().unwrap(); }
+        for h in handles {
+            h.join().unwrap();
+        }
         while pool.pop_task().is_some() {}
         let dur = start.elapsed();
         println!("multi_thread_seg run {:3} took {:?}", i + 1, dur);

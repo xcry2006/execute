@@ -5,7 +5,7 @@ use std::time::Duration;
 
 use crate::config::CommandConfig;
 use crate::error::ExecuteError;
-use crate::executor::{execute_command, CommandExecutor};
+use crate::executor::{CommandExecutor, execute_command};
 use crate::semaphore::Semaphore;
 
 /// 命令池，基于 Mutex<VecDeque> 实现。
@@ -50,10 +50,7 @@ impl CommandPool {
     /// pool.push_task(CommandConfig::new("echo", vec!["hi".to_string()]));
     /// ```
     pub fn push_task(&self, task: CommandConfig) {
-        let mut tasks = self
-            .tasks
-            .lock()
-            .unwrap_or_else(|e| e.into_inner());
+        let mut tasks = self.tasks.lock().unwrap_or_else(|e| e.into_inner());
         tasks.push_back(task);
     }
 
@@ -65,10 +62,7 @@ impl CommandPool {
     /// - `Some(CommandConfig)`: 成功弹出任务。
     /// - `None`: 池为空。
     pub fn pop_task(&self) -> Option<CommandConfig> {
-        let mut tasks = self
-            .tasks
-            .lock()
-            .unwrap_or_else(|e| e.into_inner());
+        let mut tasks = self.tasks.lock().unwrap_or_else(|e| e.into_inner());
         tasks.pop_front()
     }
 
@@ -76,10 +70,7 @@ impl CommandPool {
     ///
     /// 返回当前命令池是否没有待处理任务。
     pub fn is_empty(&self) -> bool {
-        let tasks = self
-            .tasks
-            .lock()
-            .unwrap_or_else(|e| e.into_inner());
+        let tasks = self.tasks.lock().unwrap_or_else(|e| e.into_inner());
         tasks.is_empty()
     }
 
@@ -109,11 +100,13 @@ impl CommandPool {
     pub fn start_executor_with_workers(&self, interval: Duration, workers: usize) {
         for _ in 0..workers {
             let pool_clone = self.clone();
-            thread::spawn(move || loop {
-                while let Some(task) = pool_clone.pop_task() {
-                    let _ = pool_clone.execute_task(&task);
+            thread::spawn(move || {
+                loop {
+                    while let Some(task) = pool_clone.pop_task() {
+                        let _ = pool_clone.execute_task(&task);
+                    }
+                    thread::sleep(interval);
                 }
-                thread::sleep(interval);
             });
         }
     }
@@ -129,12 +122,14 @@ impl CommandPool {
         for _ in 0..workers {
             let pool_clone = self.clone();
             let sem = sem.clone();
-            thread::spawn(move || loop {
-                while let Some(task) = pool_clone.pop_task() {
-                    let _permit = sem.acquire_guard();
-                    let _ = pool_clone.execute_task(&task);
+            thread::spawn(move || {
+                loop {
+                    while let Some(task) = pool_clone.pop_task() {
+                        let _permit = sem.acquire_guard();
+                        let _ = pool_clone.execute_task(&task);
+                    }
+                    thread::sleep(interval);
                 }
-                thread::sleep(interval);
             });
         }
     }
@@ -149,7 +144,10 @@ impl CommandPool {
     /// # 返回
     /// - `Ok(Output)`: 子进程正常退出并返回输出。
     /// - `Err(ExecuteError)`: 启动进程、等待或超时等错误情况。
-    pub fn execute_task(&self, config: &CommandConfig) -> Result<std::process::Output, ExecuteError> {
+    pub fn execute_task(
+        &self,
+        config: &CommandConfig,
+    ) -> Result<std::process::Output, ExecuteError> {
         execute_command(config)
     }
 
@@ -178,11 +176,13 @@ impl CommandPool {
         for _ in 0..workers {
             let pool_clone = self.clone();
             let executor = executor.clone();
-            thread::spawn(move || loop {
-                while let Some(task) = pool_clone.pop_task() {
-                    let _ = executor.execute(&task);
+            thread::spawn(move || {
+                loop {
+                    while let Some(task) = pool_clone.pop_task() {
+                        let _ = executor.execute(&task);
+                    }
+                    thread::sleep(interval);
                 }
-                thread::sleep(interval);
             });
         }
     }
@@ -200,12 +200,14 @@ impl CommandPool {
             let pool_clone = self.clone();
             let executor = executor.clone();
             let sem = sem.clone();
-            thread::spawn(move || loop {
-                while let Some(task) = pool_clone.pop_task() {
-                    let _permit = sem.acquire_guard();
-                    let _ = executor.execute(&task);
+            thread::spawn(move || {
+                loop {
+                    while let Some(task) = pool_clone.pop_task() {
+                        let _permit = sem.acquire_guard();
+                        let _ = executor.execute(&task);
+                    }
+                    thread::sleep(interval);
                 }
-                thread::sleep(interval);
             });
         }
     }
@@ -216,4 +218,3 @@ impl Default for CommandPool {
         Self::new()
     }
 }
-

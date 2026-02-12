@@ -13,17 +13,15 @@ fn command_config_new_sets_defaults() {
 
 #[test]
 fn command_config_with_working_dir_sets_dir() {
-    let cfg = CommandConfig::new("echo", vec!["hi".to_string()])
-        .with_working_dir("/tmp");
+    let cfg = CommandConfig::new("echo", vec!["hi".to_string()]).with_working_dir("/tmp");
 
     assert_eq!(cfg.working_dir(), Some("/tmp"));
 }
 
 #[test]
 fn command_config_with_timeout_sets_timeout() {
-    let cfg = CommandConfig::new("sleep", vec!["1".to_string()])
-        .with_timeout(Duration::from_millis(250));
+    let cfg =
+        CommandConfig::new("sleep", vec!["1".to_string()]).with_timeout(Duration::from_millis(250));
 
     assert_eq!(cfg.timeout(), Some(Duration::from_millis(250)));
 }
-

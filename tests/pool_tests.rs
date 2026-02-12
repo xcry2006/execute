@@ -26,4 +26,3 @@ fn command_pool_seg_push_pop_and_is_empty_work() {
     // 单线程环境下，pop 之后应为空
     assert!(pool.is_empty());
 }
-

@@ -5,7 +5,7 @@ use std::time::Duration;
 use crossbeam_queue::SegQueue;
 
 use crate::config::CommandConfig;
-use crate::executor::{execute_command, CommandExecutor};
+use crate::executor::{CommandExecutor, execute_command};
 use crate::semaphore::Semaphore;
 
 /// 基于无锁队列（SegQueue）的命令池 | Lock-free command pool using SegQueue
@@ -20,7 +20,9 @@ pub struct CommandPoolSeg {
 impl CommandPoolSeg {
     /// 创建一个新的无锁命令池 | Create a new lock-free command pool
     pub fn new() -> Self {
-        Self { tasks: Arc::new(SegQueue::new()) }
+        Self {
+            tasks: Arc::new(SegQueue::new()),
+        }
     }
 
     /// 无阻塞地推入任务 | Push a task without blocking (lock-free)
@@ -54,11 +56,13 @@ impl CommandPoolSeg {
     pub fn start_executor_with_workers(&self, interval: Duration, workers: usize) {
         for _ in 0..workers {
             let pool = self.clone();
-            thread::spawn(move || loop {
-                while let Some(task) = pool.pop_task() {
-                    let _ = execute_command(&task);
+            thread::spawn(move || {
+                loop {
+                    while let Some(task) = pool.pop_task() {
+                        let _ = execute_command(&task);
+                    }
+                    thread::sleep(interval);
                 }
-                thread::sleep(interval);
             });
         }
     }
@@ -74,12 +78,14 @@ impl CommandPoolSeg {
         for _ in 0..workers {
             let pool = self.clone();
             let sem = sem.clone();
-            thread::spawn(move || loop {
-                while let Some(task) = pool.pop_task() {
-                    let _permit = sem.acquire_guard();
-                    let _ = execute_command(&task);
+            thread::spawn(move || {
+                loop {
+                    while let Some(task) = pool.pop_task() {
+                        let _permit = sem.acquire_guard();
+                        let _ = execute_command(&task);
+                    }
+                    thread::sleep(interval);
                 }
-                thread::sleep(interval);
             });
         }
     }
@@ -106,11 +112,13 @@ impl CommandPoolSeg {
         for _ in 0..workers {
             let pool = self.clone();
             let executor = executor.clone();
-            thread::spawn(move || loop {
-                while let Some(task) = pool.pop_task() {
-                    let _ = executor.execute(&task);
+            thread::spawn(move || {
+                loop {
+                    while let Some(task) = pool.pop_task() {
+                        let _ = executor.execute(&task);
+                    }
+                    thread::sleep(interval);
                 }
-                thread::sleep(interval);
             });
         }
     }
@@ -128,12 +136,14 @@ impl CommandPoolSeg {
             let pool = self.clone();
             let executor = executor.clone();
             let sem = sem.clone();
-            thread::spawn(move || loop {
-                while let Some(task) = pool.pop_task() {
-                    let _permit = sem.acquire_guard();
-                    let _ = executor.execute(&task);
+            thread::spawn(move || {
+                loop {
+                    while let Some(task) = pool.pop_task() {
+                        let _permit = sem.acquire_guard();
+                        let _ = executor.execute(&task);
+                    }
+                    thread::sleep(interval);
                 }
-                thread::sleep(interval);
             });
         }
     }
@@ -144,4 +154,3 @@ impl Default for CommandPoolSeg {
         Self::new()
     }
 }
-
