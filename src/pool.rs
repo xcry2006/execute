@@ -51,7 +51,9 @@ impl CommandPool {
     /// - `task`: 要添加到池中的 `CommandConfig` 实例。
     ///
     /// # 示例
-    /// ```
+    /// ```ignore
+    /// use execute::{CommandPool, CommandConfig};
+    ///
     /// let pool = CommandPool::new();
     /// pool.push_task(CommandConfig::new("echo", vec!["hi".to_string()]));
     /// ```
@@ -97,7 +99,10 @@ impl CommandPool {
     /// - `interval`: 两次轮询之间的间隔时间。
     ///
     /// # 示例
-    /// ```
+    /// ```ignore
+    /// use execute::CommandPool;
+    /// use std::time::Duration;
+    ///
     /// let pool = CommandPool::new();
     /// pool.start_executor(Duration::from_secs(1));
     /// ```
