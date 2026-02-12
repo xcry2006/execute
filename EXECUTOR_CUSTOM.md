@@ -182,7 +182,7 @@ pool.start_executor_with_executor(Duration::from_millis(100), executor);
 
 ```rust
 use execute::{CommandPool, CommandConfig, CommandExecutor, ExecuteError};
-use std::process::Output;
+use std::process::{Command, Output};
 use std::sync::Arc;
 use std::time::Duration;
 
@@ -191,17 +191,20 @@ struct CustomExecutor;
 
 impl CommandExecutor for CustomExecutor {
     fn execute(&self, config: &CommandConfig) -> Result<Output, ExecuteError> {
-        // 实现您的执行逻辑
+        // 实现您的执行逻辑：这里给出一个最简同步实现示例
         println!("Executing: {} {:?}", config.program(), config.args());
-        Ok(Output {
-            status: std::process::ExitStatus::from_raw(0),
-            stdout: vec![],
-            stderr: vec![],
-        })
+
+        let mut cmd = Command::new(config.program());
+        cmd.args(config.args());
+        if let Some(dir) = config.working_dir() {
+            cmd.current_dir(dir);
+        }
+
+        cmd.output().map_err(ExecuteError::Io)
     }
 }
-
-fn main() {
+ 
+fn main() -> Result<(), ExecuteError> {
     let pool = CommandPool::new();
     let executor = Arc::new(CustomExecutor);
 
@@ -219,5 +222,6 @@ fn main() {
 
     // 等待任务完成
     std::thread::sleep(Duration::from_secs(1));
+    Ok(())
 }
 ```
