@@ -2,20 +2,15 @@
 ///
 /// 用户可以选择使用多线程模式或多进程模式来执行命令。
 /// Users can choose between multi-threaded or multi-process execution modes.
-#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Default)]
 pub enum ExecutionMode {
     /// 多线程模式 - 在共享进程内的多个线程中执行任务
     /// Multi-threaded mode - executes tasks in multiple threads within the same process
     Thread,
     /// 多进程模式 - 使用子进程执行每个命令
     /// Multi-process mode - spawns child processes for each command
+    #[default]
     Process,
-}
-
-impl Default for ExecutionMode {
-    fn default() -> Self {
-        ExecutionMode::Process
-    }
 }
 
 /// 执行模式配置 | Execution mode configuration

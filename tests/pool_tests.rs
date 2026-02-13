@@ -1,6 +1,4 @@
-use execute::{
-    CommandConfig, CommandPool, CommandPoolSeg, ExecutionConfig, ExecutionMode,
-};
+use execute::{CommandConfig, CommandPool, CommandPoolSeg, ExecutionConfig, ExecutionMode};
 
 #[test]
 fn command_pool_push_pop_and_is_empty_work() {
