@@ -1,4 +1,7 @@
-use execute::{CommandConfig, CommandPool, CommandPoolSeg, ExecutionConfig, ExecutionMode};
+use execute::{
+    BackendConfig, BackendType, CommandConfig, CommandPool, CommandPoolSeg, ExecutionConfig,
+    ExecutionMode,
+};
 
 #[test]
 fn command_pool_push_pop_and_is_empty_work() {
@@ -84,4 +87,73 @@ fn execution_config_builder_pattern() {
     assert_eq!(config.mode, ExecutionMode::Thread);
     assert_eq!(config.workers, 8);
     assert_eq!(config.concurrency_limit, Some(16));
+}
+
+// ============================================================================
+// 后端系统测试
+// ============================================================================
+
+#[test]
+fn backend_config_default_is_process() {
+    let config = BackendConfig::new();
+    assert_eq!(config.backend_type, BackendType::Process);
+}
+
+#[test]
+fn backend_config_builder_pattern() {
+    let config = BackendConfig::new()
+        .with_backend_type(BackendType::ThreadPool)
+        .with_workers(8)
+        .with_pool_size(4)
+        .with_concurrency_limit(16);
+
+    assert_eq!(config.backend_type, BackendType::ThreadPool);
+    assert_eq!(config.workers, 8);
+    assert_eq!(config.pool_size, Some(4));
+    assert_eq!(config.concurrency_limit, Some(16));
+}
+
+#[test]
+fn command_pool_can_use_process_backend() {
+    let config = BackendConfig::new().with_backend_type(BackendType::Process);
+    let pool = CommandPool::with_backend_config(config);
+    assert_eq!(pool.backend_name(), "ProcessBackend");
+}
+
+#[test]
+fn command_pool_can_use_thread_pool_backend() {
+    let config = BackendConfig::new().with_backend_type(BackendType::ThreadPool);
+    let pool = CommandPool::with_backend_config(config);
+    assert_eq!(pool.backend_name(), "ThreadPoolBackend");
+}
+
+#[test]
+fn command_pool_can_use_inline_backend() {
+    let config = BackendConfig::new().with_backend_type(BackendType::Inline);
+    let pool = CommandPool::with_backend_config(config);
+    assert_eq!(pool.backend_name(), "InlineBackend");
+}
+
+#[test]
+fn command_pool_can_use_process_pool_backend() {
+    let config = BackendConfig::new().with_backend_type(BackendType::ProcessPool);
+    let pool = CommandPool::with_backend_config(config);
+    assert_eq!(pool.backend_name(), "ProcessPoolBackend");
+}
+
+#[test]
+fn command_pool_default_uses_process_backend() {
+    let pool = CommandPool::new();
+    assert_eq!(pool.backend_name(), "ProcessBackend");
+}
+
+#[test]
+fn backend_type_equality() {
+    assert_eq!(BackendType::Process, BackendType::Process);
+    assert_eq!(BackendType::ThreadPool, BackendType::ThreadPool);
+    assert_eq!(BackendType::ProcessPool, BackendType::ProcessPool);
+    assert_eq!(BackendType::Inline, BackendType::Inline);
+
+    assert_ne!(BackendType::Process, BackendType::ThreadPool);
+    assert_ne!(BackendType::ThreadPool, BackendType::ProcessPool);
 }

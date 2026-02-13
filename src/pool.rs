@@ -3,21 +3,24 @@ use std::sync::{Arc, Mutex};
 use std::thread;
 use std::time::Duration;
 
+use crate::backend::{BackendConfig, BackendFactory, BackendType, ExecutionBackend};
 use crate::config::CommandConfig;
 use crate::error::ExecuteError;
 use crate::execution_mode::{ExecutionConfig, ExecutionMode};
-use crate::executor::{CommandExecutor, execute_command};
+use crate::executor::CommandExecutor;
 use crate::semaphore::Semaphore;
 use crate::thread_executor::ThreadModeExecutor;
 
-/// 命令池，基于 Mutex<VecDeque> 实现，支持多线程和多进程两种模式。
+/// 命令池，基于 Mutex<VecDeque> 实现，支持多种执行后端。
 #[derive(Clone)]
 pub struct CommandPool {
     tasks: Arc<Mutex<VecDeque<CommandConfig>>>,
-    /// 执行模式配置
+    /// 执行模式配置（向后兼容）
     exec_config: ExecutionConfig,
-    /// 线程模式执行器（仅在 Thread 模式下使用）
+    /// 线程模式执行器（向后兼容）
     thread_executor: Option<Arc<ThreadModeExecutor>>,
+    /// 执行后端（新的中间层）
+    backend: Arc<dyn ExecutionBackend>,
 }
 
 /// `CommandPool` 是一个简单的命令队列，支持多线程生产任务并由后台执行器消费执行。
@@ -36,10 +39,10 @@ pub struct CommandPool {
 impl CommandPool {
     /// # 创建一个CommandPool命令池（默认多进程模式）
     pub fn new() -> Self {
-        Self::with_config(ExecutionConfig::default())
+        Self::with_backend_config(BackendConfig::default())
     }
 
-    /// # 使用指定执行模式创建命令池
+    /// # 使用指定执行模式创建命令池（向后兼容）
     ///
     /// # 参数
     /// - `config`: 执行模式配置，包含模式类型、工作线程/进程数等
@@ -53,16 +56,56 @@ impl CommandPool {
     /// let pool = CommandPool::with_config(config);
     /// ```
     pub fn with_config(config: ExecutionConfig) -> Self {
-        let thread_executor = if config.mode == ExecutionMode::Thread {
+        // 将旧的 ExecutionConfig 映射到新的 BackendConfig
+        let backend_type = match config.mode {
+            ExecutionMode::Thread => BackendType::ThreadPool,
+            ExecutionMode::Process => BackendType::Process,
+        };
+        let backend_config = BackendConfig::new()
+            .with_backend_type(backend_type)
+            .with_workers(config.workers)
+            .with_concurrency_limit(config.concurrency_limit.unwrap_or(0));
+
+        Self::with_backend_config(backend_config)
+    }
+
+    /// # 使用指定后端配置创建命令池（推荐）
+    ///
+    /// # 参数
+    /// - `config`: 后端配置，允许自由选择执行策略
+    ///
+    /// # 示例
+    /// ```ignore
+    /// use execute::{CommandPool, BackendConfig, BackendType};
+    ///
+    /// // 使用进程池后端
+    /// let config = BackendConfig::new().with_backend_type(BackendType::ProcessPool);
+    /// let pool = CommandPool::with_backend_config(config);
+    /// ```
+    pub fn with_backend_config(config: BackendConfig) -> Self {
+        let thread_executor = if config.backend_type == BackendType::ThreadPool {
             Some(Arc::new(ThreadModeExecutor::new(config.workers)))
         } else {
             None
         };
 
+        let backend = BackendFactory::create(&config);
+        let _ = backend.start();
+
+        // 为了保持向后兼容，同时创建 ExecutionConfig
+        let exec_config = ExecutionConfig::new()
+            .with_mode(match config.backend_type {
+                BackendType::ThreadPool => ExecutionMode::Thread,
+                _ => ExecutionMode::Process,
+            })
+            .with_workers(config.workers)
+            .with_concurrency_limit(config.concurrency_limit.unwrap_or(0));
+
         Self {
             tasks: Arc::new(Mutex::new(VecDeque::new())),
-            exec_config: config,
+            exec_config,
             thread_executor,
+            backend,
         }
     }
 
@@ -211,7 +254,7 @@ impl CommandPool {
 
     /// Execute a single task.
     ///
-    /// 启动子进程并等待完成；若设置了超时，会在超时后尝试终止子进程并返回 `ExecuteError::Timeout`。
+    /// 使用配置的后端执行命令；若设置了超时，会在超时后尝试终止子进程并返回 `ExecuteError::Timeout`。
     ///
     /// # 参数
     /// - `config`: 要执行的命令配置引用。
@@ -223,7 +266,17 @@ impl CommandPool {
         &self,
         config: &CommandConfig,
     ) -> Result<std::process::Output, ExecuteError> {
-        execute_command(config)
+        self.backend.execute(config)
+    }
+
+    /// # 获取当前执行后端
+    pub fn backend(&self) -> &Arc<dyn ExecutionBackend> {
+        &self.backend
+    }
+
+    /// # 获取后端名称
+    pub fn backend_name(&self) -> &'static str {
+        self.backend.name()
     }
 
     /// 使用自定义执行器启动执行器 | Start executor with custom executor
