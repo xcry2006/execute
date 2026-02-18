@@ -52,8 +52,8 @@ fn main() -> Result<(), ExecuteError> {
         CommandConfig::new("sleep", vec!["1".to_string()]).with_timeout(Duration::from_millis(200)),
     );
 
-    // 使用自定义 Tokio 执行器，4 个工作线程，最多 2 个并发执行外部命令
-    pool.start_executor_with_executor_and_limit(Duration::from_millis(50), 4, 2, executor);
+    // 使用自定义 Tokio 执行器
+    pool.start_with_executor(Duration::from_millis(50), executor);
 
     // 简单等待一段时间以便任务运行完成
     std::thread::sleep(Duration::from_secs(2));
