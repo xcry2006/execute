@@ -95,7 +95,7 @@ fn bench_execute_true() {
     }
 }
 
-fn bench_executor_with_limit() {
+fn bench_executor() {
     let iterations = 10;
     for i in 0..iterations {
         let pool = CommandPool::new();
@@ -103,14 +103,13 @@ fn bench_executor_with_limit() {
             pool.push_task(CommandConfig::new("true", vec![]));
         }
         let start = Instant::now();
-        // workers=4, limit=4
-        pool.start_executor_with_workers_and_limit(Duration::from_millis(1), 4, 4);
+        pool.start_executor(Duration::from_millis(1));
         // wait until pool is empty
         while !pool.is_empty() {
             thread::sleep(Duration::from_millis(10));
         }
         let dur = start.elapsed();
-        println!("executor_limit run {:3} took {:?}", i + 1, dur);
+        println!("executor run {:3} took {:?}", i + 1, dur);
     }
 }
 
@@ -121,5 +120,5 @@ fn main() {
     bench_push_multi_thread();
     bench_push_multi_thread_seg();
     bench_execute_true();
-    bench_executor_with_limit();
+    bench_executor();
 }

@@ -4,151 +4,124 @@ use std::sync::Arc;
 use crate::config::CommandConfig;
 use crate::error::ExecuteError;
 
-/// 执行后端 trait | Execution backend trait
+/// 执行后端 trait
 ///
-/// 定义命令执行的不同后端实现，用户可以根据需求选择合适的后端。
-/// 这是中间层抽象，允许自由选择执行策略。
+/// 定义命令执行的抽象接口，支持多种执行策略。
+/// 实现此 trait 的后端可以被 CommandPool 使用来执行命令。
 pub trait ExecutionBackend: Send + Sync {
     /// 执行单个命令
     ///
     /// # 参数
-    /// - `config`: 命令配置
+    /// - `config`: 命令配置，包含程序名、参数、工作目录和超时设置
     ///
     /// # 返回
-    /// - `Ok(Output)`: 命令执行成功
-    /// - `Err(ExecuteError)`: 执行失败
+    /// - `Ok(Output)`: 命令成功执行，返回输出
+    /// - `Err(ExecuteError)`: 执行失败，返回错误
     fn execute(&self, config: &CommandConfig) -> Result<Output, ExecuteError>;
-
-    /// 获取后端名称
-    fn name(&self) -> &'static str;
-
-    /// 启动后端（如果需要）
-    fn start(&self) -> Result<(), ExecuteError> {
-        Ok(())
-    }
-
-    /// 停止后端（如果需要）
-    fn stop(&self) -> Result<(), ExecuteError> {
-        Ok(())
-    }
 }
 
-/// 后端类型枚举 | Backend type enumeration
+/// 执行模式
 ///
-/// 预定义的后端类型，方便用户快速选择。
+/// 定义命令池的执行策略，用户可以根据场景选择合适的模式。
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Default)]
-pub enum BackendType {
-    /// 多进程后端 - 每个命令独立子进程
-    /// 特点：完全隔离，资源独立，启动开销较大
+pub enum ExecutionMode {
+    /// 多进程模式 - 每个命令独立子进程
+    ///
+    /// 特点：
+    /// - 每个命令启动一个新的子进程
+    /// - 完全隔离，安全性高
+    /// - 进程创建开销较大
     #[default]
     Process,
-
-    /// 线程池后端 - 常驻子进程+内部多线程
-    /// 特点：通过工作进程池复用，减少启动开销
-    ThreadPool,
-
-    /// 进程池后端 - 预创建子进程池
-    /// 特点：预创建进程，快速响应，有状态保持能力
+    /// 多线程模式 - 线程池调度任务
+    ///
+    /// 特点：
+    /// - 在主进程内使用线程池调度
+    /// - 任务切换开销小
+    /// - 共享内存空间
+    Thread,
+    /// 进程池模式 - 常驻子进程池
+    ///
+    /// 特点：
+    /// - 预创建一组子进程，复用执行命令
+    /// - 减少进程创建开销
+    /// - 可以维护状态（未来实现）
+    /// - 适合高频短命令场景
     ProcessPool,
-
-    /// 内联后端 - 在同一线程直接执行
-    /// 特点：无额外开销，适合轻量命令或测试
-    Inline,
 }
 
-/// 后端配置 | Backend configuration
+/// 执行配置
+///
+/// 用于配置命令池的执行行为，包括执行模式和工作线程数。
 #[derive(Debug, Clone)]
-pub struct BackendConfig {
-    /// 后端类型
-    pub backend_type: BackendType,
+pub struct ExecutionConfig {
+    /// 执行模式
+    pub mode: ExecutionMode,
     /// 工作线程/进程数
     pub workers: usize,
-    /// 进程池大小（仅 ProcessPool 使用）
-    pub pool_size: Option<usize>,
-    /// 并发限制
-    pub concurrency_limit: Option<usize>,
 }
 
-impl BackendConfig {
+impl ExecutionConfig {
     /// 创建默认配置
+    ///
+    /// 默认使用多进程模式，工作线程数为 CPU 核心数（至少为 4）。
     pub fn new() -> Self {
         Self {
-            backend_type: BackendType::Process,
+            mode: ExecutionMode::Process,
             workers: std::thread::available_parallelism()
                 .map(|n| n.get())
                 .unwrap_or(4),
-            pool_size: None,
-            concurrency_limit: None,
         }
     }
 
-    /// 设置后端类型
-    pub fn with_backend_type(mut self, backend_type: BackendType) -> Self {
-        self.backend_type = backend_type;
+    /// 设置执行模式
+    ///
+    /// # 参数
+    /// - `mode`: 执行模式（Process/Thread/ProcessPool）
+    ///
+    /// # 示例
+    /// ```ignore
+    /// use execute::{ExecutionConfig, ExecutionMode};
+    ///
+    /// let config = ExecutionConfig::new().with_mode(ExecutionMode::Thread);
+    /// ```
+    pub fn with_mode(mut self, mode: ExecutionMode) -> Self {
+        self.mode = mode;
         self
     }
 
     /// 设置工作线程/进程数
+    ///
+    /// # 参数
+    /// - `workers`: 工作线程或进程的数量
+    ///
+    /// # 示例
+    /// ```ignore
+    /// use execute::ExecutionConfig;
+    ///
+    /// let config = ExecutionConfig::new().with_workers(8);
+    /// ```
     pub fn with_workers(mut self, workers: usize) -> Self {
         self.workers = workers;
         self
     }
-
-    /// 设置进程池大小
-    pub fn with_pool_size(mut self, pool_size: usize) -> Self {
-        self.pool_size = Some(pool_size);
-        self
-    }
-
-    /// 设置并发限制
-    pub fn with_concurrency_limit(mut self, limit: usize) -> Self {
-        self.concurrency_limit = Some(limit);
-        self
-    }
 }
 
-impl Default for BackendConfig {
+impl Default for ExecutionConfig {
     fn default() -> Self {
         Self::new()
     }
 }
 
-/// 后端工厂 | Backend factory
+/// 多进程后端 - 每个命令独立子进程
 ///
-/// 根据配置创建对应的后端实例。
-pub struct BackendFactory;
-
-impl BackendFactory {
-    /// 根据配置创建后端
-    pub fn create(config: &BackendConfig) -> Arc<dyn ExecutionBackend> {
-        match config.backend_type {
-            BackendType::Process => Arc::new(ProcessBackend::new(config)),
-            BackendType::ThreadPool => Arc::new(ThreadPoolBackend::new(config)),
-            BackendType::ProcessPool => Arc::new(ProcessPoolBackend::new(config)),
-            BackendType::Inline => Arc::new(InlineBackend::new()),
-        }
-    }
-}
-
-// ============================================================================
-// 具体后端实现
-// ============================================================================
-
-/// 多进程后端 | Process backend
-///
-/// 每个命令启动一个独立的子进程，执行完成后退出。
-/// 特点：完全隔离，无状态共享，启动开销较大。
-pub struct ProcessBackend {
-    #[allow(dead_code)]
-    config: BackendConfig,
-}
+/// 最简单的执行后端，每次执行命令时都创建一个新的子进程。
+/// 适用于命令执行频率不高或需要完全隔离的场景。
+pub struct ProcessBackend;
 
 impl ProcessBackend {
-    /// 创建新的多进程后端
-    pub fn new(config: &BackendConfig) -> Self {
-        Self {
-            config: config.clone(),
-        }
+    pub fn new() -> Self {
+        Self
     }
 }
 
@@ -156,107 +129,74 @@ impl ExecutionBackend for ProcessBackend {
     fn execute(&self, config: &CommandConfig) -> Result<Output, ExecuteError> {
         crate::executor::execute_command(config)
     }
+}
 
-    fn name(&self) -> &'static str {
-        "ProcessBackend"
+impl Default for ProcessBackend {
+    fn default() -> Self {
+        Self::new()
     }
 }
 
-/// 线程池后端 | Thread pool backend
+/// 多线程后端 - 使用线程池调度任务
 ///
-/// 在主进程内使用线程池调度任务，每个任务启动子进程执行。
-/// 特点：任务调度更高效，但每个命令仍是独立子进程。
-pub struct ThreadPoolBackend {
+/// 在主进程内使用多线程调度任务执行。
+/// 与多进程模式的区别在于任务调度的机制，命令仍通过子进程执行。
+pub struct ThreadBackend {
     #[allow(dead_code)]
-    config: BackendConfig,
+    workers: usize,
 }
 
-impl ThreadPoolBackend {
-    /// 创建新的线程池后端
-    pub fn new(config: &BackendConfig) -> Self {
-        Self {
-            config: config.clone(),
-        }
+impl ThreadBackend {
+    pub fn new(workers: usize) -> Self {
+        Self { workers }
     }
 }
 
-impl ExecutionBackend for ThreadPoolBackend {
+impl ExecutionBackend for ThreadBackend {
     fn execute(&self, config: &CommandConfig) -> Result<Output, ExecuteError> {
-        // 线程池后端也是通过子进程执行命令
+        // 线程模式下也是通过子进程执行命令
         // 区别在于任务调度的机制
         crate::executor::execute_command(config)
     }
-
-    fn name(&self) -> &'static str {
-        "ThreadPoolBackend"
-    }
 }
 
-/// 进程池后端 | Process pool backend
+/// 进程池后端 - 常驻子进程池
 ///
 /// 预创建一组子进程，复用这些进程执行命令。
-/// 特点：减少进程创建开销，可以维护状态。
+/// 适用于高频短命令场景，可以显著减少进程创建开销。
+///
+/// # TODO
+/// - 实现真正的进程池逻辑（目前使用简单实现）
+/// - 添加 IPC 机制与常驻子进程通信
+/// - 支持进程状态保持
 pub struct ProcessPoolBackend {
     #[allow(dead_code)]
-    config: BackendConfig,
+    pool_size: usize,
 }
 
 impl ProcessPoolBackend {
-    /// 创建新的进程池后端
-    pub fn new(config: &BackendConfig) -> Self {
-        Self {
-            config: config.clone(),
-        }
+    pub fn new(pool_size: usize) -> Self {
+        Self { pool_size }
     }
 }
 
 impl ExecutionBackend for ProcessPoolBackend {
     fn execute(&self, config: &CommandConfig) -> Result<Output, ExecuteError> {
-        // TODO: 实现进程池逻辑
-        // 目前先使用简单实现
+        // TODO: 实现进程池逻辑，目前先用简单实现
+        // 后续可以通过 IPC 与常驻子进程通信
         crate::executor::execute_command(config)
     }
-
-    fn name(&self) -> &'static str {
-        "ProcessPoolBackend"
-    }
-
-    fn start(&self) -> Result<(), ExecuteError> {
-        // TODO: 预创建进程池
-        Ok(())
-    }
-
-    fn stop(&self) -> Result<(), ExecuteError> {
-        // TODO: 清理进程池
-        Ok(())
-    }
 }
 
-/// 内联后端 | Inline backend
-///
-/// 在同一线程直接执行命令，不创建额外线程。
-/// 特点：最简单，无并发，适合测试或单任务场景。
-pub struct InlineBackend;
+/// 后端工厂
+pub struct BackendFactory;
 
-impl InlineBackend {
-    /// 创建新的内联后端
-    pub fn new() -> Self {
-        Self
-    }
-}
-
-impl ExecutionBackend for InlineBackend {
-    fn execute(&self, config: &CommandConfig) -> Result<Output, ExecuteError> {
-        crate::executor::execute_command(config)
-    }
-
-    fn name(&self) -> &'static str {
-        "InlineBackend"
-    }
-}
-
-impl Default for InlineBackend {
-    fn default() -> Self {
-        Self::new()
+impl BackendFactory {
+    pub fn create(config: &ExecutionConfig) -> Arc<dyn ExecutionBackend> {
+        match config.mode {
+            ExecutionMode::Process => Arc::new(ProcessBackend::new()),
+            ExecutionMode::Thread => Arc::new(ThreadBackend::new(config.workers)),
+            ExecutionMode::ProcessPool => Arc::new(ProcessPoolBackend::new(config.workers)),
+        }
     }
 }
