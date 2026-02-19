@@ -113,3 +113,42 @@ fn command_pool_without_queue_limit() {
     
     assert_eq!(pool.len(), 100);
 }
+
+#[test]
+fn command_pool_batch_operations() {
+    let pool = CommandPool::new();
+    
+    // 批量添加任务
+    let tasks: Vec<_> = (0..10)
+        .map(|i| CommandConfig::new("echo", vec![i.to_string()]))
+        .collect();
+    
+    let count = pool.push_tasks_batch(tasks);
+    assert_eq!(count, 10);
+    assert_eq!(pool.len(), 10);
+    
+    // 清空任务
+    let cleared = pool.clear();
+    assert_eq!(cleared, 10);
+    assert!(pool.is_empty());
+}
+
+#[test]
+fn command_pool_try_push_batch() {
+    let config = ExecutionConfig::new();
+    let pool = CommandPool::with_config_and_limit(config, 5);
+    
+    // 先添加 3 个任务
+    pool.push_task(CommandConfig::new("echo", vec!["1".to_string()]));
+    pool.push_task(CommandConfig::new("echo", vec!["2".to_string()]));
+    pool.push_task(CommandConfig::new("echo", vec!["3".to_string()]));
+    
+    // 尝试批量添加 10 个任务，应该只添加 2 个（达到队列限制 5）
+    let tasks: Vec<_> = (0..10)
+        .map(|i| CommandConfig::new("echo", vec![i.to_string()]))
+        .collect();
+    
+    let count = pool.try_push_tasks_batch(tasks);
+    assert_eq!(count, 2);
+    assert_eq!(pool.len(), 5);
+}

@@ -100,6 +100,61 @@ impl CommandPool {
         task
     }
 
+    /// 批量添加任务
+    pub fn push_tasks_batch(&self, tasks: Vec<CommandConfig>) -> usize {
+        let (lock, cvar) = &*self.tasks;
+        let mut queue = lock.lock().unwrap();
+        
+        let count = tasks.len();
+        
+        for task in tasks {
+            // 如果设置了队列大小限制，等待队列有空位
+            if let Some(max) = self.max_size {
+                while queue.len() >= max {
+                    queue = cvar.wait(queue).unwrap();
+                }
+            }
+            queue.push_back(task);
+        }
+        
+        cvar.notify_all();
+        count
+    }
+
+    /// 尝试批量添加任务，返回成功添加的数量
+    pub fn try_push_tasks_batch(&self, tasks: Vec<CommandConfig>) -> usize {
+        let (lock, cvar) = &*self.tasks;
+        let mut queue = lock.lock().unwrap();
+        
+        let mut count = 0;
+        
+        for task in tasks {
+            // 如果设置了队列大小限制，检查是否有空位
+            if let Some(max) = self.max_size {
+                if queue.len() >= max {
+                    break;
+                }
+            }
+            queue.push_back(task);
+            count += 1;
+        }
+        
+        if count > 0 {
+            cvar.notify_all();
+        }
+        count
+    }
+
+    /// 清空所有任务
+    pub fn clear(&self) -> usize {
+        let (lock, cvar) = &*self.tasks;
+        let mut tasks = lock.lock().unwrap();
+        let count = tasks.len();
+        tasks.clear();
+        cvar.notify_all();
+        count
+    }
+
     /// 获取当前队列大小
     pub fn len(&self) -> usize {
         let (lock, _) = &*self.tasks;
