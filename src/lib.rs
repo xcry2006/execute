@@ -5,6 +5,7 @@ mod executor;
 mod pool;
 mod pool_seg;
 mod semaphore;
+mod task_status;
 
 pub use backend::{ExecutionBackend, ExecutionConfig, ExecutionMode};
 pub use semaphore::{Semaphore, SemaphoreGuard};
@@ -13,3 +14,4 @@ pub use error::ExecuteError;
 pub use executor::{CommandExecutor, StdCommandExecutor};
 pub use pool::CommandPool;
 pub use pool_seg::CommandPoolSeg;
+pub use task_status::{TaskIdGenerator, TaskStatus, TaskStatusTracker};
