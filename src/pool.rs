@@ -57,14 +57,14 @@ impl CommandPool {
     pub fn push_task(&self, task: CommandConfig) {
         let (lock, cvar) = &*self.tasks;
         let mut tasks = lock.lock().unwrap();
-        
+
         // 如果设置了队列大小限制，等待队列有空位
         if let Some(max) = self.max_size {
             while tasks.len() >= max {
                 tasks = cvar.wait(tasks).unwrap();
             }
         }
-        
+
         tasks.push_back(task);
         cvar.notify_one();
     }
@@ -73,17 +73,17 @@ impl CommandPool {
     pub fn try_push_task(&self, task: CommandConfig) -> Result<(), ExecuteError> {
         let (lock, cvar) = &*self.tasks;
         let mut tasks = lock.lock().unwrap();
-        
+
         // 如果设置了队列大小限制，检查是否有空位
-        if let Some(max) = self.max_size {
-            if tasks.len() >= max {
-                return Err(ExecuteError::Io(std::io::Error::new(
-                    std::io::ErrorKind::WouldBlock,
-                    "task queue is full",
-                )));
-            }
+        if let Some(max) = self.max_size
+            && tasks.len() >= max
+        {
+            return Err(ExecuteError::Io(std::io::Error::new(
+                std::io::ErrorKind::WouldBlock,
+                "task queue is full",
+            )));
         }
-        
+
         tasks.push_back(task);
         cvar.notify_one();
         Ok(())
@@ -104,9 +104,9 @@ impl CommandPool {
     pub fn push_tasks_batch(&self, tasks: Vec<CommandConfig>) -> usize {
         let (lock, cvar) = &*self.tasks;
         let mut queue = lock.lock().unwrap();
-        
+
         let count = tasks.len();
-        
+
         for task in tasks {
             // 如果设置了队列大小限制，等待队列有空位
             if let Some(max) = self.max_size {
@@ -116,7 +116,7 @@ impl CommandPool {
             }
             queue.push_back(task);
         }
-        
+
         cvar.notify_all();
         count
     }
@@ -125,20 +125,20 @@ impl CommandPool {
     pub fn try_push_tasks_batch(&self, tasks: Vec<CommandConfig>) -> usize {
         let (lock, cvar) = &*self.tasks;
         let mut queue = lock.lock().unwrap();
-        
+
         let mut count = 0;
-        
+
         for task in tasks {
             // 如果设置了队列大小限制，检查是否有空位
-            if let Some(max) = self.max_size {
-                if queue.len() >= max {
-                    break;
-                }
+            if let Some(max) = self.max_size
+                && queue.len() >= max
+            {
+                break;
             }
             queue.push_back(task);
             count += 1;
         }
-        
+
         if count > 0 {
             cvar.notify_all();
         }
@@ -183,9 +183,9 @@ impl CommandPool {
         if self.running.load(Ordering::SeqCst) {
             return;
         }
-        
+
         self.running.store(true, Ordering::SeqCst);
-        
+
         match self.config.mode {
             ExecutionMode::Thread => self.start_thread_executor(interval),
             ExecutionMode::Process => self.start_process_executor(interval),
@@ -196,7 +196,7 @@ impl CommandPool {
     /// 停止执行器
     pub fn stop(&self) {
         self.running.store(false, Ordering::SeqCst);
-        
+
         // 等待所有线程结束
         let mut handles = self.handles.lock().unwrap();
         for handle in handles.drain(..) {
@@ -281,9 +281,9 @@ impl CommandPool {
         if self.running.load(Ordering::SeqCst) {
             return;
         }
-        
+
         self.running.store(true, Ordering::SeqCst);
-        
+
         for _ in 0..self.config.workers {
             let pool = self.clone();
             let exec = executor.clone();

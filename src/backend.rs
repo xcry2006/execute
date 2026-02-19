@@ -263,7 +263,10 @@ impl BackendFactory {
             }
             ExecutionMode::ProcessPool => {
                 if let Some(limit) = config.concurrency_limit {
-                    Arc::new(ProcessPoolBackend::with_concurrency_limit(config.workers, limit))
+                    Arc::new(ProcessPoolBackend::with_concurrency_limit(
+                        config.workers,
+                        limit,
+                    ))
                 } else {
                     Arc::new(ProcessPoolBackend::new(config.workers))
                 }

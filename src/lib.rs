@@ -9,11 +9,11 @@ mod semaphore;
 mod task_status;
 
 pub use backend::{ExecutionBackend, ExecutionConfig, ExecutionMode};
-pub use semaphore::{Semaphore, SemaphoreGuard};
 pub use config::CommandConfig;
 pub use error::ExecuteError;
 pub use executor::{CommandExecutor, StdCommandExecutor};
 pub use pool::CommandPool;
 pub use pool_seg::CommandPoolSeg;
 pub use process_pool::ProcessPool;
+pub use semaphore::{Semaphore, SemaphoreGuard};
 pub use task_status::{TaskIdGenerator, TaskStatus, TaskStatusTracker};

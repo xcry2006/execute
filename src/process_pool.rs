@@ -8,6 +8,7 @@ use crate::error::ExecuteError;
 
 /// 进程池中的工作进程
 struct WorkerProcess {
+    #[allow(dead_code)]
     id: usize,
     child: Child,
     stdin: std::process::ChildStdin,
@@ -24,21 +25,17 @@ impl WorkerProcess {
             .stdout(Stdio::piped())
             .stderr(Stdio::piped())
             .spawn()
-            .map_err(|e| ExecuteError::Io(e))?;
+            .map_err(ExecuteError::Io)?;
 
-        let stdin = child.stdin.take().ok_or_else(|| {
-            ExecuteError::Io(std::io::Error::new(
-                std::io::ErrorKind::Other,
-                "failed to capture stdin",
-            ))
-        })?;
+        let stdin = child
+            .stdin
+            .take()
+            .ok_or_else(|| ExecuteError::Io(std::io::Error::other("failed to capture stdin")))?;
 
-        let stdout = BufReader::new(child.stdout.take().ok_or_else(|| {
-            ExecuteError::Io(std::io::Error::new(
-                std::io::ErrorKind::Other,
-                "failed to capture stdout",
-            ))
-        })?);
+        let stdout =
+            BufReader::new(child.stdout.take().ok_or_else(|| {
+                ExecuteError::Io(std::io::Error::other("failed to capture stdout"))
+            })?);
 
         Ok(Self {
             id,
@@ -62,14 +59,14 @@ impl WorkerProcess {
         // 发送命令到子进程
         self.stdin
             .write_all(cmd_line.as_bytes())
-            .map_err(|e| ExecuteError::Io(e))?;
-        self.stdin.flush().map_err(|e| ExecuteError::Io(e))?;
+            .map_err(ExecuteError::Io)?;
+        self.stdin.flush().map_err(ExecuteError::Io)?;
 
         // 读取执行结果
         let mut response = String::new();
         self.stdout
             .read_line(&mut response)
-            .map_err(|e| ExecuteError::Io(e))?;
+            .map_err(ExecuteError::Io)?;
 
         // 解析响应
         // 格式: exit_code\tstdout_len\tstdout\tstderr_len\tstderr
@@ -81,10 +78,10 @@ impl WorkerProcess {
             )));
         }
 
-        let exit_code: i32 = parts[0].parse().unwrap_or(-1);
-        let stdout_len: usize = parts[1].parse().unwrap_or(0);
+        let _exit_code: i32 = parts[0].parse().unwrap_or(-1);
+        let _stdout_len: usize = parts[1].parse().unwrap_or(0);
         let stdout = parts[2].as_bytes().to_vec();
-        let stderr_len: usize = parts[3].parse().unwrap_or(0);
+        let _stderr_len: usize = parts[3].parse().unwrap_or(0);
         let stderr = parts[4].as_bytes().to_vec();
 
         Ok(std::process::Output {

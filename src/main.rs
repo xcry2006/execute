@@ -64,7 +64,7 @@ fn run_worker_mode() -> Result<(), execute::ExecuteError> {
     let mut stdout = io::stdout();
 
     for line in stdin.lock().lines() {
-        let line = line.map_err(|e| execute::ExecuteError::Io(e))?;
+        let line = line.map_err(execute::ExecuteError::Io)?;
         if line.is_empty() {
             continue;
         }
