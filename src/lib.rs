@@ -6,6 +6,7 @@ mod pool;
 mod pool_seg;
 mod process_pool;
 mod semaphore;
+mod task_handle;
 mod task_status;
 
 pub use backend::{ExecutionBackend, ExecutionConfig, ExecutionMode};
@@ -16,4 +17,5 @@ pub use pool::CommandPool;
 pub use pool_seg::CommandPoolSeg;
 pub use process_pool::ProcessPool;
 pub use semaphore::{Semaphore, SemaphoreGuard};
+pub use task_handle::{TaskHandle, TaskResult, TaskWithResult};
 pub use task_status::{TaskIdGenerator, TaskStatus, TaskStatusTracker};
