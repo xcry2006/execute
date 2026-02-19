@@ -1,6 +1,6 @@
 use std::collections::VecDeque;
 use std::sync::atomic::{AtomicBool, Ordering};
-use std::sync::{Arc, Mutex};
+use std::sync::{Arc, Condvar, Mutex};
 use std::thread::{self, JoinHandle};
 use std::time::Duration;
 
@@ -11,11 +11,12 @@ use crate::executor::CommandExecutor;
 
 /// 命令池，支持多线程和多进程两种执行模式
 pub struct CommandPool {
-    tasks: Arc<Mutex<VecDeque<CommandConfig>>>,
+    tasks: Arc<(Mutex<VecDeque<CommandConfig>>, Condvar)>,
     config: ExecutionConfig,
     backend: Arc<dyn ExecutionBackend>,
     running: Arc<AtomicBool>,
     handles: Arc<Mutex<Vec<JoinHandle<()>>>>,
+    max_size: Option<usize>,
 }
 
 impl CommandPool {
@@ -29,30 +30,91 @@ impl CommandPool {
         let backend = BackendFactory::create(&config);
 
         Self {
-            tasks: Arc::new(Mutex::new(VecDeque::new())),
+            tasks: Arc::new((Mutex::new(VecDeque::new()), Condvar::new())),
             config,
             backend,
             running: Arc::new(AtomicBool::new(false)),
             handles: Arc::new(Mutex::new(Vec::new())),
+            max_size: None,
         }
     }
 
-    /// 添加任务
+    /// 使用指定配置和队列大小限制创建命令池
+    pub fn with_config_and_limit(config: ExecutionConfig, max_size: usize) -> Self {
+        let backend = BackendFactory::create(&config);
+
+        Self {
+            tasks: Arc::new((Mutex::new(VecDeque::new()), Condvar::new())),
+            config,
+            backend,
+            running: Arc::new(AtomicBool::new(false)),
+            handles: Arc::new(Mutex::new(Vec::new())),
+            max_size: Some(max_size),
+        }
+    }
+
+    /// 添加任务（如果设置了队列大小限制，队列满时会阻塞等待）
     pub fn push_task(&self, task: CommandConfig) {
-        let mut tasks = self.tasks.lock().unwrap();
+        let (lock, cvar) = &*self.tasks;
+        let mut tasks = lock.lock().unwrap();
+        
+        // 如果设置了队列大小限制，等待队列有空位
+        if let Some(max) = self.max_size {
+            while tasks.len() >= max {
+                tasks = cvar.wait(tasks).unwrap();
+            }
+        }
+        
         tasks.push_back(task);
+        cvar.notify_one();
+    }
+
+    /// 尝试添加任务，如果队列满则返回错误
+    pub fn try_push_task(&self, task: CommandConfig) -> Result<(), ExecuteError> {
+        let (lock, cvar) = &*self.tasks;
+        let mut tasks = lock.lock().unwrap();
+        
+        // 如果设置了队列大小限制，检查是否有空位
+        if let Some(max) = self.max_size {
+            if tasks.len() >= max {
+                return Err(ExecuteError::Io(std::io::Error::new(
+                    std::io::ErrorKind::WouldBlock,
+                    "task queue is full",
+                )));
+            }
+        }
+        
+        tasks.push_back(task);
+        cvar.notify_one();
+        Ok(())
     }
 
     /// 弹出任务
     pub fn pop_task(&self) -> Option<CommandConfig> {
-        let mut tasks = self.tasks.lock().unwrap();
-        tasks.pop_front()
+        let (lock, cvar) = &*self.tasks;
+        let mut tasks = lock.lock().unwrap();
+        let task = tasks.pop_front();
+        if task.is_some() {
+            cvar.notify_one();
+        }
+        task
+    }
+
+    /// 获取当前队列大小
+    pub fn len(&self) -> usize {
+        let (lock, _) = &*self.tasks;
+        let tasks = lock.lock().unwrap();
+        tasks.len()
     }
 
     /// 是否为空
     pub fn is_empty(&self) -> bool {
-        let tasks = self.tasks.lock().unwrap();
-        tasks.is_empty()
+        self.len() == 0
+    }
+
+    /// 获取队列大小限制
+    pub fn max_size(&self) -> Option<usize> {
+        self.max_size
     }
 
     /// 获取执行模式
@@ -194,6 +256,7 @@ impl Clone for CommandPool {
             backend: Arc::clone(&self.backend),
             running: Arc::clone(&self.running),
             handles: Arc::clone(&self.handles),
+            max_size: self.max_size,
         }
     }
 }

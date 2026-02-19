@@ -79,3 +79,37 @@ fn execution_config_can_create_all_modes() {
     let pool_config = ExecutionConfig::new().with_mode(ExecutionMode::ProcessPool);
     assert_eq!(pool_config.mode, ExecutionMode::ProcessPool);
 }
+
+#[test]
+fn command_pool_with_queue_limit() {
+    let config = ExecutionConfig::new();
+    let pool = CommandPool::with_config_and_limit(config, 2);
+    
+    assert_eq!(pool.max_size(), Some(2));
+    assert_eq!(pool.len(), 0);
+    
+    // 添加任务
+    pool.push_task(CommandConfig::new("echo", vec!["1".to_string()]));
+    assert_eq!(pool.len(), 1);
+    
+    pool.push_task(CommandConfig::new("echo", vec!["2".to_string()]));
+    assert_eq!(pool.len(), 2);
+    
+    // 使用 try_push_task 测试队列满的情况
+    let result = pool.try_push_task(CommandConfig::new("echo", vec!["3".to_string()]));
+    assert!(result.is_err());
+}
+
+#[test]
+fn command_pool_without_queue_limit() {
+    let pool = CommandPool::new();
+    
+    assert_eq!(pool.max_size(), None);
+    
+    // 可以添加多个任务
+    for i in 0..100 {
+        pool.push_task(CommandConfig::new("echo", vec![i.to_string()]));
+    }
+    
+    assert_eq!(pool.len(), 100);
+}
