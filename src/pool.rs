@@ -1,6 +1,7 @@
 use std::collections::VecDeque;
+use std::sync::atomic::{AtomicBool, Ordering};
 use std::sync::{Arc, Mutex};
-use std::thread;
+use std::thread::{self, JoinHandle};
 use std::time::Duration;
 
 use crate::backend::{BackendFactory, ExecutionBackend, ExecutionConfig, ExecutionMode};
@@ -9,11 +10,12 @@ use crate::error::ExecuteError;
 use crate::executor::CommandExecutor;
 
 /// 命令池，支持多线程和多进程两种执行模式
-#[derive(Clone)]
 pub struct CommandPool {
     tasks: Arc<Mutex<VecDeque<CommandConfig>>>,
     config: ExecutionConfig,
     backend: Arc<dyn ExecutionBackend>,
+    running: Arc<AtomicBool>,
+    handles: Arc<Mutex<Vec<JoinHandle<()>>>>,
 }
 
 impl CommandPool {
@@ -30,6 +32,8 @@ impl CommandPool {
             tasks: Arc::new(Mutex::new(VecDeque::new())),
             config,
             backend,
+            running: Arc::new(AtomicBool::new(false)),
+            handles: Arc::new(Mutex::new(Vec::new())),
         }
     }
 
@@ -58,6 +62,13 @@ impl CommandPool {
 
     /// 启动执行器
     pub fn start_executor(&self, interval: Duration) {
+        // 如果已经在运行，先停止
+        if self.running.load(Ordering::SeqCst) {
+            return;
+        }
+        
+        self.running.store(true, Ordering::SeqCst);
+        
         match self.config.mode {
             ExecutionMode::Thread => self.start_thread_executor(interval),
             ExecutionMode::Process => self.start_process_executor(interval),
@@ -65,31 +76,55 @@ impl CommandPool {
         }
     }
 
+    /// 停止执行器
+    pub fn stop(&self) {
+        self.running.store(false, Ordering::SeqCst);
+        
+        // 等待所有线程结束
+        let mut handles = self.handles.lock().unwrap();
+        for handle in handles.drain(..) {
+            let _ = handle.join();
+        }
+    }
+
+    /// 检查执行器是否正在运行
+    pub fn is_running(&self) -> bool {
+        self.running.load(Ordering::SeqCst)
+    }
+
     fn start_thread_executor(&self, interval: Duration) {
         for _ in 0..self.config.workers {
             let pool = self.clone();
-            thread::spawn(move || {
-                loop {
+            let handle = thread::spawn(move || {
+                while pool.running.load(Ordering::SeqCst) {
                     while let Some(task) = pool.pop_task() {
+                        if !pool.running.load(Ordering::SeqCst) {
+                            break;
+                        }
                         let _ = pool.execute_task(&task);
                     }
                     thread::sleep(interval);
                 }
             });
+            self.handles.lock().unwrap().push(handle);
         }
     }
 
     fn start_process_executor(&self, interval: Duration) {
         for _ in 0..self.config.workers {
             let pool = self.clone();
-            thread::spawn(move || {
-                loop {
+            let handle = thread::spawn(move || {
+                while pool.running.load(Ordering::SeqCst) {
                     while let Some(task) = pool.pop_task() {
+                        if !pool.running.load(Ordering::SeqCst) {
+                            break;
+                        }
                         let _ = pool.execute_task(&task);
                     }
                     thread::sleep(interval);
                 }
             });
+            self.handles.lock().unwrap().push(handle);
         }
     }
 
@@ -97,14 +132,18 @@ impl CommandPool {
         // 进程池模式：复用工作线程，但后端使用进程池执行命令
         for _ in 0..self.config.workers {
             let pool = self.clone();
-            thread::spawn(move || {
-                loop {
+            let handle = thread::spawn(move || {
+                while pool.running.load(Ordering::SeqCst) {
                     while let Some(task) = pool.pop_task() {
+                        if !pool.running.load(Ordering::SeqCst) {
+                            break;
+                        }
                         let _ = pool.execute_task(&task);
                     }
                     thread::sleep(interval);
                 }
             });
+            self.handles.lock().unwrap().push(handle);
         }
     }
 
@@ -122,17 +161,39 @@ impl CommandPool {
         interval: Duration,
         executor: Arc<E>,
     ) {
+        if self.running.load(Ordering::SeqCst) {
+            return;
+        }
+        
+        self.running.store(true, Ordering::SeqCst);
+        
         for _ in 0..self.config.workers {
             let pool = self.clone();
             let exec = executor.clone();
-            thread::spawn(move || {
-                loop {
+            let handle = thread::spawn(move || {
+                while pool.running.load(Ordering::SeqCst) {
                     while let Some(task) = pool.pop_task() {
+                        if !pool.running.load(Ordering::SeqCst) {
+                            break;
+                        }
                         let _ = exec.execute(&task);
                     }
                     thread::sleep(interval);
                 }
             });
+            self.handles.lock().unwrap().push(handle);
+        }
+    }
+}
+
+impl Clone for CommandPool {
+    fn clone(&self) -> Self {
+        Self {
+            tasks: Arc::clone(&self.tasks),
+            config: self.config.clone(),
+            backend: Arc::clone(&self.backend),
+            running: Arc::clone(&self.running),
+            handles: Arc::clone(&self.handles),
         }
     }
 }

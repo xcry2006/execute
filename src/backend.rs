@@ -3,6 +3,7 @@ use std::sync::Arc;
 
 use crate::config::CommandConfig;
 use crate::error::ExecuteError;
+use crate::semaphore::Semaphore;
 
 /// 执行后端 trait
 ///
@@ -59,6 +60,8 @@ pub struct ExecutionConfig {
     pub mode: ExecutionMode,
     /// 工作线程/进程数
     pub workers: usize,
+    /// 并发限制（可选）
+    pub concurrency_limit: Option<usize>,
 }
 
 impl ExecutionConfig {
@@ -71,7 +74,24 @@ impl ExecutionConfig {
             workers: std::thread::available_parallelism()
                 .map(|n| n.get())
                 .unwrap_or(4),
+            concurrency_limit: None,
         }
+    }
+
+    /// 设置并发限制
+    ///
+    /// # 参数
+    /// - `limit`: 最大并发执行数
+    ///
+    /// # 示例
+    /// ```ignore
+    /// use execute::ExecutionConfig;
+    ///
+    /// let config = ExecutionConfig::new().with_concurrency_limit(10);
+    /// ```
+    pub fn with_concurrency_limit(mut self, limit: usize) -> Self {
+        self.concurrency_limit = Some(limit);
+        self
     }
 
     /// 设置执行模式
@@ -117,16 +137,25 @@ impl Default for ExecutionConfig {
 ///
 /// 最简单的执行后端，每次执行命令时都创建一个新的子进程。
 /// 适用于命令执行频率不高或需要完全隔离的场景。
-pub struct ProcessBackend;
+pub struct ProcessBackend {
+    semaphore: Option<Semaphore>,
+}
 
 impl ProcessBackend {
     pub fn new() -> Self {
-        Self
+        Self { semaphore: None }
+    }
+
+    pub fn with_concurrency_limit(limit: usize) -> Self {
+        Self {
+            semaphore: Some(Semaphore::new(limit)),
+        }
     }
 }
 
 impl ExecutionBackend for ProcessBackend {
     fn execute(&self, config: &CommandConfig) -> Result<Output, ExecuteError> {
+        let _guard = self.semaphore.as_ref().map(|s| s.acquire_guard());
         crate::executor::execute_command(config)
     }
 }
@@ -144,16 +173,28 @@ impl Default for ProcessBackend {
 pub struct ThreadBackend {
     #[allow(dead_code)]
     workers: usize,
+    semaphore: Option<Semaphore>,
 }
 
 impl ThreadBackend {
     pub fn new(workers: usize) -> Self {
-        Self { workers }
+        Self {
+            workers,
+            semaphore: None,
+        }
+    }
+
+    pub fn with_concurrency_limit(workers: usize, limit: usize) -> Self {
+        Self {
+            workers,
+            semaphore: Some(Semaphore::new(limit)),
+        }
     }
 }
 
 impl ExecutionBackend for ThreadBackend {
     fn execute(&self, config: &CommandConfig) -> Result<Output, ExecuteError> {
+        let _guard = self.semaphore.as_ref().map(|s| s.acquire_guard());
         // 线程模式下也是通过子进程执行命令
         // 区别在于任务调度的机制
         crate::executor::execute_command(config)
@@ -172,16 +213,28 @@ impl ExecutionBackend for ThreadBackend {
 pub struct ProcessPoolBackend {
     #[allow(dead_code)]
     pool_size: usize,
+    semaphore: Option<Semaphore>,
 }
 
 impl ProcessPoolBackend {
     pub fn new(pool_size: usize) -> Self {
-        Self { pool_size }
+        Self {
+            pool_size,
+            semaphore: None,
+        }
+    }
+
+    pub fn with_concurrency_limit(pool_size: usize, limit: usize) -> Self {
+        Self {
+            pool_size,
+            semaphore: Some(Semaphore::new(limit)),
+        }
     }
 }
 
 impl ExecutionBackend for ProcessPoolBackend {
     fn execute(&self, config: &CommandConfig) -> Result<Output, ExecuteError> {
+        let _guard = self.semaphore.as_ref().map(|s| s.acquire_guard());
         // TODO: 实现进程池逻辑，目前先用简单实现
         // 后续可以通过 IPC 与常驻子进程通信
         crate::executor::execute_command(config)
@@ -194,9 +247,27 @@ pub struct BackendFactory;
 impl BackendFactory {
     pub fn create(config: &ExecutionConfig) -> Arc<dyn ExecutionBackend> {
         match config.mode {
-            ExecutionMode::Process => Arc::new(ProcessBackend::new()),
-            ExecutionMode::Thread => Arc::new(ThreadBackend::new(config.workers)),
-            ExecutionMode::ProcessPool => Arc::new(ProcessPoolBackend::new(config.workers)),
+            ExecutionMode::Process => {
+                if let Some(limit) = config.concurrency_limit {
+                    Arc::new(ProcessBackend::with_concurrency_limit(limit))
+                } else {
+                    Arc::new(ProcessBackend::new())
+                }
+            }
+            ExecutionMode::Thread => {
+                if let Some(limit) = config.concurrency_limit {
+                    Arc::new(ThreadBackend::with_concurrency_limit(config.workers, limit))
+                } else {
+                    Arc::new(ThreadBackend::new(config.workers))
+                }
+            }
+            ExecutionMode::ProcessPool => {
+                if let Some(limit) = config.concurrency_limit {
+                    Arc::new(ProcessPoolBackend::with_concurrency_limit(config.workers, limit))
+                } else {
+                    Arc::new(ProcessPoolBackend::new(config.workers))
+                }
+            }
         }
     }
 }

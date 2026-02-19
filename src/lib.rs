@@ -7,6 +7,7 @@ mod pool_seg;
 mod semaphore;
 
 pub use backend::{ExecutionBackend, ExecutionConfig, ExecutionMode};
+pub use semaphore::{Semaphore, SemaphoreGuard};
 pub use config::CommandConfig;
 pub use error::ExecuteError;
 pub use executor::{CommandExecutor, StdCommandExecutor};
