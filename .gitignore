@@ -1,9 +1,29 @@
+# IDE
 /.idea/
+/.vscode/
+*.swp
+*~
+
+# Rust
 /target
+/Cargo.lock
+
+# Logs
 *.log
+
+# Performance analysis
 perf.data
 perf.data.old
 perf_report.txt
+
+# OS
 .DS_Store
-*.swp
-*~
+Thumbs.db
+
+# Environment
+.env
+.env.local
+
+# Test artifacts
+*.profraw
+*.profdata
