@@ -10,12 +10,39 @@ use crate::error::ExecuteError;
 use crate::executor::CommandExecutor;
 
 /// 命令池，支持多线程和多进程两种执行模式
+///
+/// 提供线程安全的任务队列管理，支持多种执行后端（Process/Thread/ProcessPool）。
+/// 可选的队列大小限制可防止内存无限增长。
 pub struct CommandPool {
+    /// 任务队列和条件变量
+    ///
+    /// - Mutex<VecDeque<CommandConfig>>: 存储待执行的任务
+    /// - Condvar: 用于队列满时的阻塞等待和通知
     tasks: Arc<(Mutex<VecDeque<CommandConfig>>, Condvar)>,
+
+    /// 执行配置
+    ///
+    /// 包含执行模式、工作线程数、并发限制等配置
     config: ExecutionConfig,
+
+    /// 执行后端
+    ///
+    /// 具体的命令执行实现（ProcessBackend/ThreadBackend/ProcessPoolBackend）
     backend: Arc<dyn ExecutionBackend>,
+
+    /// 运行状态标志
+    ///
+    /// 用于控制执行器线程的启动和停止
     running: Arc<AtomicBool>,
+
+    /// 工作线程句柄列表
+    ///
+    /// 存储所有执行器线程的 JoinHandle，用于优雅关闭
     handles: Arc<Mutex<Vec<JoinHandle<()>>>>,
+
+    /// 队列大小限制
+    ///
+    /// None 表示无限制，Some(n) 表示最多 n 个任务
     max_size: Option<usize>,
 }
 

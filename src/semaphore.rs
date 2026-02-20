@@ -5,11 +5,16 @@ use std::sync::{Arc, Condvar, Mutex};
 /// 基于 `Mutex` 和 `Condvar` 实现，用于轻量级的并发执行控制。
 /// 限制同时执行的外部子进程数量，防止系统资源耗尽。
 pub struct Semaphore {
+    /// 内部状态：当前可用许可证数和条件变量
+    ///
+    /// - Mutex<usize>: 当前可用的许可证数量
+    /// - Condvar: 用于阻塞等待许可证的条件变量
     inner: Arc<(Mutex<usize>, Condvar)>,
 }
 
 /// RAII 信号量守卫，在 Drop 时自动释放许可证 | RAII semaphore guard that releases permit on drop.
 pub struct SemaphoreGuard {
+    /// 内部状态的克隆，用于在 Drop 时释放许可证
     inner: Arc<(Mutex<usize>, Condvar)>,
 }
 

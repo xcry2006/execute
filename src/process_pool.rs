@@ -7,11 +7,27 @@ use crate::config::CommandConfig;
 use crate::error::ExecuteError;
 
 /// 进程池中的工作进程
+///
+/// 封装一个常驻子进程，通过 stdin/stdout 进行 IPC 通信。
+/// 用于执行命令并返回结果，避免频繁创建销毁进程的开销。
 struct WorkerProcess {
+    /// 工作进程 ID（用于调试）
     #[allow(dead_code)]
     id: usize,
+
+    /// 子进程句柄
+    ///
+    /// 用于管理子进程生命周期（终止、等待等）
     child: Child,
+
+    /// 子进程标准输入
+    ///
+    /// 用于向子进程发送命令
     stdin: std::process::ChildStdin,
+
+    /// 子进程标准输出（缓冲读取器）
+    ///
+    /// 用于从子进程读取执行结果
     stdout: BufReader<std::process::ChildStdout>,
 }
 
