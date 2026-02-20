@@ -17,6 +17,7 @@
  - **任务状态查询**：追踪任务状态（Pending/Running/Completed/Failed）
  - **任务结果获取**：异步获取任务执行结果（TaskHandle）
  - **真正的进程池**：常驻子进程池，通过 IPC 通信执行命令
+ - **Pipeline 支持**：命令管道，支持链式执行多个命令
 
 快速开始
 ---------
@@ -106,15 +107,50 @@ let pool = ProcessPool::new(4).unwrap(); // 4 个工作进程
 let output = pool.execute(&CommandConfig::new("echo", vec!["hello".to_string()])).unwrap();
 ```
 
-更多示例
---------
+示例（使用 Pipeline）:
 
-- Tokio 集成与超时控制示例：见 `examples/tokio_integration.rs`
+```rust
+use execute::{Pipeline, PipelineExecutor, CommandConfig};
 
-自定义执行器
+let pipeline = Pipeline::new()
+    .pipe(CommandConfig::new("echo", vec!["hello world".to_string()]))
+    .pipe(CommandConfig::new("tr", vec!["a-z".to_string(), "A-Z".to_string()]));
+
+let output = PipelineExecutor::execute(&pipeline).unwrap();
+// 输出: HELLO WORLD
+```
+
+更多示例与文档
 --------------
 
+- **Tokio 集成与超时控制示例**：见 `examples/tokio_integration.rs`
+- **自定义执行器完整指南**：见 [EXECUTOR_CUSTOM.md](EXECUTOR_CUSTOM.md)
+  - Tokio 异步执行器实现
+  - 带超时的异步执行器
+  - 性能优化建议
+  - 完整代码示例
+
+自定义执行器简介
+----------------
+
 实现 `CommandExecutor` trait 即可将自定义执行器注入到命令池（例如在 `tokio` 里创建异步执行逻辑并在同步 trait 中 `block_on`，或在专用线程中运行运行时）。
+
+```rust
+use execute::{CommandExecutor, CommandConfig, ExecuteError};
+use std::process::Output;
+
+struct MyExecutor;
+
+impl CommandExecutor for MyExecutor {
+    fn execute(&self, config: &CommandConfig) -> Result<Output, ExecuteError> {
+        // 自定义执行逻辑
+        std::process::Command::new(&config.program)
+            .args(&config.args)
+            .output()
+            .map_err(ExecuteError::Io)
+    }
+}
+```
 
 详细示例与指南请见 [自定义执行器文档](EXECUTOR_CUSTOM.md)。
 
