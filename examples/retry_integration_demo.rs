@@ -1,8 +1,8 @@
 /// 演示重试机制集成到命令执行流程
 ///
-/// 此示例展示了如何在 CommandPool 和 CommandPoolSeg 中使用重试机制。
+/// 此示例展示了如何在 CommandPool 中使用重试机制。
 /// 重试机制会自动重试执行错误（如超时、spawn失败），但不会重试非零退出码。
-use execute::{CommandConfig, CommandPool, CommandPoolSeg, RetryPolicy, RetryStrategy};
+use execute::{CommandConfig, CommandPool, RetryPolicy, RetryStrategy};
 use std::time::Duration;
 
 fn main() {
@@ -19,10 +19,7 @@ fn main() {
     // 示例 2: CommandPool 中使用指数退避重试策略
     demo_commandpool_exponential_backoff_retry();
 
-    // 示例 3: CommandPoolSeg 中使用重试策略
-    demo_commandpoolseg_retry();
-
-    // 示例 4: 重试不影响指标准确性
+    // 示例 3: 重试不影响指标准确性
     demo_metrics_accuracy_with_retry();
 
     println!("\n=== 演示完成 ===");
@@ -100,36 +97,8 @@ fn demo_commandpool_exponential_backoff_retry() {
     pool.shutdown().unwrap();
 }
 
-fn demo_commandpoolseg_retry() {
-    println!("3. CommandPoolSeg - 重试机制");
-    println!("   配置: 最多重试 1 次，固定间隔 100ms");
-
-    let pool = CommandPoolSeg::new();
-    pool.start_executor_with_workers(Duration::from_millis(50), 2);
-
-    let retry_policy =
-        RetryPolicy::new(1, RetryStrategy::FixedInterval(Duration::from_millis(100)));
-
-    // 提交多个任务
-    for i in 1..=3 {
-        let config = CommandConfig::new("sleep", vec!["2".to_string()])
-            .with_timeout(Duration::from_millis(30))
-            .with_retry(retry_policy.clone());
-
-        println!("   提交任务 {}: sleep 2 (超时 30ms)", i);
-        pool.push_task(config).unwrap();
-    }
-
-    // 等待所有任务完成
-    std::thread::sleep(Duration::from_millis(800));
-
-    println!("   说明: CommandPoolSeg 也支持重试机制\n");
-
-    pool.stop();
-}
-
 fn demo_metrics_accuracy_with_retry() {
-    println!("4. 重试不影响指标准确性");
+    println!("3. 重试不影响指标准确性");
     println!("   验证: 即使有重试，指标仍然准确记录任务数量");
 
     let pool = CommandPool::new();

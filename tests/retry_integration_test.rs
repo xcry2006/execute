@@ -7,7 +7,7 @@
 ///
 /// 注意：重试机制只重试执行错误（spawn失败、超时等），不重试非零退出码。
 /// 非零退出码表示命令成功执行但返回了失败状态，这不是执行错误。
-use execute::{CommandConfig, CommandPool, CommandPoolSeg, RetryPolicy, RetryStrategy};
+use execute::{CommandConfig, CommandPool, RetryPolicy, RetryStrategy};
 use std::time::Duration;
 
 #[test]
@@ -104,37 +104,6 @@ fn test_commandpool_retry_success_after_retry() {
     assert_eq!(metrics.tasks_failed, 0, "任务不应该失败");
 
     pool.shutdown().unwrap();
-}
-
-#[test]
-#[cfg(unix)]
-fn test_commandpoolseg_retry_on_timeout() {
-    // 测试 CommandPoolSeg 的超时重试
-    let _ = tracing_subscriber::fmt().with_test_writer().try_init();
-
-    let pool = CommandPoolSeg::new();
-    pool.start_executor_with_workers(Duration::from_millis(100), 2);
-
-    // 创建一个会超时的命令，配置重试策略
-    let retry_policy = RetryPolicy::new(
-        2,
-        RetryStrategy::ExponentialBackoff {
-            initial: Duration::from_millis(10),
-            max: Duration::from_millis(100),
-            multiplier: 2.0,
-        },
-    );
-
-    let config = CommandConfig::new("sleep", vec!["1".to_string()])
-        .with_timeout(Duration::from_millis(10))
-        .with_retry(retry_policy);
-
-    pool.push_task(config).unwrap();
-
-    // 等待任务执行完成（包括重试）
-    std::thread::sleep(Duration::from_millis(500));
-
-    pool.stop();
 }
 
 #[test]

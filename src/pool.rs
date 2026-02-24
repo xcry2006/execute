@@ -25,70 +25,19 @@ pub struct TaskItem {
 }
 
 /// 命令池，支持多线程和多进程两种执行模式
-///
-/// 提供线程安全的任务队列管理，支持多种执行后端（Process/Thread/ProcessPool）。
-/// 可选的队列大小限制可防止内存无限增长。
 pub struct CommandPool {
-    /// 任务队列和条件变量
-    ///
-    /// - `Mutex<VecDeque<TaskItem>>`: 存储待执行的任务
-    /// - Condvar: 用于队列满时的阻塞等待和通知
     tasks: Arc<(Mutex<VecDeque<TaskItem>>, Condvar)>,
-
-    /// 执行配置
-    ///
-    /// 包含执行模式、工作线程数、并发限制等配置
     config: ExecutionConfig,
-
-    /// 执行后端
-    ///
-    /// 具体的命令执行实现（ProcessBackend/ThreadBackend/ProcessPoolBackend）
     backend: Arc<dyn ExecutionBackend>,
-
-    /// 运行状态标志
-    ///
-    /// 用于控制执行器线程的启动和停止
     running: Arc<AtomicBool>,
-
-    /// 工作线程句柄列表
-    ///
-    /// 存储所有执行器线程的 JoinHandle，用于优雅关闭
     handles: Arc<Mutex<Vec<JoinHandle<()>>>>,
-
-    /// 队列大小限制
-    ///
-    /// None 表示无限制，Some(n) 表示最多 n 个任务
     max_size: Option<usize>,
-
-    /// 指标收集器
-    ///
-    /// 收集任务执行的统计信息
     metrics: Metrics,
-
-    /// 任务 ID 生成器
-    ///
-    /// 为每个任务生成唯一 ID
     task_id_counter: Arc<AtomicU64>,
-
-    /// 关闭标志
-    ///
-    /// 用于标记命令池是否正在关闭或已关闭
     shutdown_flag: Arc<AtomicBool>,
-
-    /// 关闭配置
-    ///
-    /// 配置优雅关闭的行为
     shutdown_config: ShutdownConfig,
-
-    /// 僵尸进程清理器（可选）
-    ///
-    /// 如果配置了僵尸进程清理间隔，会启动后台线程定期清理僵尸进程
     #[allow(dead_code)]
     zombie_reaper: Option<ZombieReaper>,
-
-    /// 执行钩子列表
-    ///
-    /// 在任务执行前后调用的钩子函数，用于性能分析和自定义监控
     hooks: Vec<Arc<dyn ExecutionHook>>,
 }
 
@@ -325,93 +274,6 @@ impl CommandPool {
         }
     }
 
-    /* Batch methods temporarily disabled - need to be updated for TaskHandle support
-    /// 批量添加任务
-    ///
-    /// # 返回
-    ///
-    /// 成功添加的任务数量
-    ///
-    /// # 错误
-    ///
-    /// 如果命令池正在关闭，返回 `SubmitError::ShuttingDown`
-    pub fn push_tasks_batch(&self, tasks: Vec<CommandConfig>) -> Result<usize, SubmitError> {
-        // 检查是否正在关闭
-        if self.shutdown_flag.load(Ordering::SeqCst) {
-            return Err(SubmitError::ShuttingDown);
-        }
-
-        let (lock, cvar) = &*self.tasks;
-        let mut queue = lock.lock().unwrap();
-
-        let count = tasks.len();
-
-        for task in tasks {
-            // 在添加每个任务前检查是否正在关闭
-            if self.shutdown_flag.load(Ordering::SeqCst) {
-                return Err(SubmitError::ShuttingDown);
-            }
-
-            // 如果设置了队列大小限制，等待队列有空位
-            if let Some(max) = self.max_size {
-                while queue.len() >= max {
-                    // 在等待期间检查是否正在关闭
-                    if self.shutdown_flag.load(Ordering::SeqCst) {
-                        return Err(SubmitError::ShuttingDown);
-                    }
-                    queue = cvar.wait(queue).unwrap();
-                }
-            }
-            queue.push_back(task);
-        }
-
-        cvar.notify_all();
-        Ok(count)
-    }
-
-    /// 尝试批量添加任务，返回成功添加的数量
-    ///
-    /// # 返回
-    ///
-    /// 成功添加的任务数量
-    ///
-    /// # 注意
-    ///
-    /// 如果命令池正在关闭，会立即返回 0
-    pub fn try_push_tasks_batch(&self, tasks: Vec<CommandConfig>) -> usize {
-        // 检查是否正在关闭
-        if self.shutdown_flag.load(Ordering::SeqCst) {
-            return 0;
-        }
-
-        let (lock, cvar) = &*self.tasks;
-        let mut queue = lock.lock().unwrap();
-
-        let mut count = 0;
-
-        for task in tasks {
-            // 在添加每个任务前检查是否正在关闭
-            if self.shutdown_flag.load(Ordering::SeqCst) {
-                break;
-            }
-
-            // 如果设置了队列大小限制，检查是否有空位
-            if let Some(max) = self.max_size
-                && queue.len() >= max
-            {
-                break;
-            }
-            queue.push_back(task);
-            count += 1;
-        }
-
-        if count > 0 {
-            cvar.notify_all();
-        }
-        count
-    }
-    */
-
     /// 清空所有任务
     pub fn clear(&self) -> usize {
         let (lock, cvar) = &*self.tasks;
@@ -452,7 +314,7 @@ impl CommandPool {
     }
 
     /// 启动执行器
-    pub fn start_executor(&self, interval: Duration) {
+    pub fn start_executor(&self, _interval: Duration) {
         // 如果已经在运行，先停止
         if self.running.load(Ordering::SeqCst) {
             return;
@@ -460,11 +322,7 @@ impl CommandPool {
 
         self.running.store(true, Ordering::SeqCst);
 
-        match self.config.mode {
-            ExecutionMode::Thread => self.start_thread_executor(interval),
-            ExecutionMode::Process => self.start_process_executor(interval),
-            ExecutionMode::ProcessPool => self.start_process_pool_executor(interval),
-        }
+        self.start_workers();
     }
 
     /// 停止执行器
@@ -623,14 +481,13 @@ impl CommandPool {
         self.shutdown_flag.load(Ordering::SeqCst)
     }
 
-    fn start_thread_executor(&self, _interval: Duration) {
+    fn start_workers(&self) {
         for _ in 0..self.config.workers {
             let pool = self.clone();
             let handle = thread::spawn(move || {
                 while pool.running.load(Ordering::SeqCst)
                     && !pool.shutdown_flag.load(Ordering::SeqCst)
                 {
-                    // pop_task 会阻塞等待，不需要轮询
                     if let Some(task_item) = pool.pop_task() {
                         if !pool.running.load(Ordering::SeqCst)
                             || pool.shutdown_flag.load(Ordering::SeqCst)
@@ -638,137 +495,26 @@ impl CommandPool {
                             break;
                         }
 
-                        // 检查任务是否已被取消
                         if task_item.handle.is_cancelled() {
                             let task_id = task_item.handle.id();
-                            tracing::info!(task_id = task_id, "Task cancelled before execution");
                             let _ = task_item
                                 .result_sender
                                 .send(Err(ExecuteError::Cancelled(task_id)));
                             continue;
                         }
 
-                        // 更新任务状态为 Running
                         task_item.handle.set_state(TaskState::Running { pid: None });
-
-                        // 执行任务
                         let result =
                             pool.execute_task_with_handle(&task_item.config, &task_item.handle);
-
-                        // 发送结果
                         let _ = task_item.result_sender.send(result);
 
-                        // 更新任务状态为 Completed（如果未被取消）
                         if !task_item.handle.is_cancelled() {
                             task_item.handle.set_state(TaskState::Completed);
                         }
                     } else {
-                        // pop_task 返回 None 表示正在关闭
                         break;
                     }
                 }
-                tracing::debug!("Thread executor worker exiting");
-            });
-            self.handles.lock().unwrap().push(handle);
-        }
-    }
-
-    fn start_process_executor(&self, _interval: Duration) {
-        for _ in 0..self.config.workers {
-            let pool = self.clone();
-            let handle = thread::spawn(move || {
-                while pool.running.load(Ordering::SeqCst)
-                    && !pool.shutdown_flag.load(Ordering::SeqCst)
-                {
-                    // pop_task 会阻塞等待，不需要轮询
-                    if let Some(task_item) = pool.pop_task() {
-                        if !pool.running.load(Ordering::SeqCst)
-                            || pool.shutdown_flag.load(Ordering::SeqCst)
-                        {
-                            break;
-                        }
-
-                        // 检查任务是否已被取消
-                        if task_item.handle.is_cancelled() {
-                            let task_id = task_item.handle.id();
-                            tracing::info!(task_id = task_id, "Task cancelled before execution");
-                            let _ = task_item
-                                .result_sender
-                                .send(Err(ExecuteError::Cancelled(task_id)));
-                            continue;
-                        }
-
-                        // 更新任务状态为 Running
-                        task_item.handle.set_state(TaskState::Running { pid: None });
-
-                        // 执行任务
-                        let result =
-                            pool.execute_task_with_handle(&task_item.config, &task_item.handle);
-
-                        // 发送结果
-                        let _ = task_item.result_sender.send(result);
-
-                        // 更新任务状态为 Completed（如果未被取消）
-                        if !task_item.handle.is_cancelled() {
-                            task_item.handle.set_state(TaskState::Completed);
-                        }
-                    } else {
-                        // pop_task 返回 None 表示正在关闭
-                        break;
-                    }
-                }
-                tracing::debug!("Process executor worker exiting");
-            });
-            self.handles.lock().unwrap().push(handle);
-        }
-    }
-
-    fn start_process_pool_executor(&self, _interval: Duration) {
-        // 进程池模式：复用工作线程，但后端使用进程池执行命令
-        for _ in 0..self.config.workers {
-            let pool = self.clone();
-            let handle = thread::spawn(move || {
-                while pool.running.load(Ordering::SeqCst)
-                    && !pool.shutdown_flag.load(Ordering::SeqCst)
-                {
-                    // pop_task 会阻塞等待，不需要轮询
-                    if let Some(task_item) = pool.pop_task() {
-                        if !pool.running.load(Ordering::SeqCst)
-                            || pool.shutdown_flag.load(Ordering::SeqCst)
-                        {
-                            break;
-                        }
-
-                        // 检查任务是否已被取消
-                        if task_item.handle.is_cancelled() {
-                            let task_id = task_item.handle.id();
-                            tracing::info!(task_id = task_id, "Task cancelled before execution");
-                            let _ = task_item
-                                .result_sender
-                                .send(Err(ExecuteError::Cancelled(task_id)));
-                            continue;
-                        }
-
-                        // 更新任务状态为 Running
-                        task_item.handle.set_state(TaskState::Running { pid: None });
-
-                        // 执行任务
-                        let result =
-                            pool.execute_task_with_handle(&task_item.config, &task_item.handle);
-
-                        // 发送结果
-                        let _ = task_item.result_sender.send(result);
-
-                        // 更新任务状态为 Completed（如果未被取消）
-                        if !task_item.handle.is_cancelled() {
-                            task_item.handle.set_state(TaskState::Completed);
-                        }
-                    } else {
-                        // pop_task 返回 None 表示正在关闭
-                        break;
-                    }
-                }
-                tracing::debug!("Process pool executor worker exiting");
             });
             self.handles.lock().unwrap().push(handle);
         }

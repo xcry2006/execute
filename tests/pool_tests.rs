@@ -1,4 +1,4 @@
-use execute::{CommandConfig, CommandPool, CommandPoolSeg, ExecutionConfig, ExecutionMode};
+use execute::{CommandConfig, CommandPool, ExecutionConfig, ExecutionMode};
 
 #[test]
 fn command_pool_push_and_is_empty_work() {
@@ -11,74 +11,6 @@ fn command_pool_push_and_is_empty_work() {
     // Clear the pool
     let cleared = pool.clear();
     assert_eq!(cleared, 1);
-    assert!(pool.is_empty());
-}
-
-#[test]
-fn command_pool_seg_push_pop_and_is_empty_work() {
-    let pool = CommandPoolSeg::new();
-    assert!(pool.is_empty());
-
-    let _ = pool.push_task(CommandConfig::new("echo", vec!["seg".to_string()]));
-    assert!(!pool.is_empty());
-
-    let task = pool.pop_task().expect("expected a task");
-    assert_eq!(task.program(), "echo");
-    assert!(pool.is_empty());
-}
-
-#[test]
-fn command_pool_seg_stop_mechanism() {
-    let pool = CommandPoolSeg::new();
-
-    // Initially not stopped
-    assert!(!pool.is_stopped());
-
-    // Can push tasks when not stopped
-    let result = pool.push_task(CommandConfig::new("echo", vec!["test".to_string()]));
-    assert!(result.is_ok());
-
-    // Stop the pool
-    pool.stop();
-    assert!(pool.is_stopped());
-
-    // Cannot push tasks after stop
-    let result = pool.push_task(CommandConfig::new("echo", vec!["test2".to_string()]));
-    assert!(result.is_err());
-
-    // Can still pop existing tasks
-    let task = pool.pop_task();
-    assert!(task.is_some());
-}
-
-#[test]
-fn command_pool_seg_stop_with_executor() {
-    use std::time::Duration;
-
-    let pool = CommandPoolSeg::new();
-
-    // Push some tasks
-    for i in 0..5 {
-        let _ = pool.push_task(CommandConfig::new("echo", vec![i.to_string()]));
-    }
-
-    // Start executor with a short interval
-    pool.start_executor_with_workers(Duration::from_millis(10), 2);
-
-    // Wait a bit for tasks to be processed
-    std::thread::sleep(Duration::from_millis(100));
-
-    // Stop the pool
-    pool.stop();
-
-    // Try to push more tasks - should fail
-    let result = pool.push_task(CommandConfig::new("echo", vec!["after_stop".to_string()]));
-    assert!(result.is_err());
-
-    // Wait for workers to finish
-    std::thread::sleep(Duration::from_millis(200));
-
-    // Queue should be empty
     assert!(pool.is_empty());
 }
 

@@ -106,81 +106,38 @@ impl std::fmt::Display for ErrorContext {
 }
 
 /// 命令执行错误，包含详细的上下文信息
-///
-/// 此枚举提供了丰富的错误类型，每个变体都包含 ErrorContext 以提供完整的执行上下文。
 #[derive(Error, Debug)]
 pub enum CommandError {
-    /// 命令执行失败
-    ///
-    /// 当命令执行过程中发生 IO 错误时返回。
-    /// 包含完整的错误上下文和底层 IO 错误。
     #[error("Command execution failed: {context}, source: {source}")]
     ExecutionFailed {
-        /// 错误上下文
         context: ErrorContext,
-        /// 底层 IO 错误
         #[source]
         source: std::io::Error,
     },
 
-    /// 命令执行超时
-    ///
-    /// 当命令执行时间超过配置的超时时间时返回。
-    /// 包含配置的超时值和实际执行时长。
-    #[error(
-        "Command timeout: {context}, configured_timeout={configured_timeout:?}, actual_duration={actual_duration:?}"
-    )]
+    #[error("Command timeout: {context}, configured_timeout={configured_timeout:?}, actual_duration={actual_duration:?}")]
     Timeout {
-        /// 错误上下文
         context: ErrorContext,
-        /// 配置的超时时间
         configured_timeout: Duration,
-        /// 实际执行时长
         actual_duration: Duration,
     },
 
-    /// 命令启动失败
-    ///
-    /// 当无法启动子进程时返回（例如命令不存在、权限不足等）。
-    /// 包含完整的错误上下文和底层 IO 错误。
     #[error("Spawn failed: {context}, source: {source}")]
     SpawnFailed {
-        /// 错误上下文
         context: ErrorContext,
-        /// 底层 IO 错误
         #[source]
         source: std::io::Error,
     },
 }
 
 impl CommandError {
-    /// 从 ExecuteError 和上下文创建 CommandError
-    ///
-    /// 此方法用于将旧的 ExecuteError 转换为新的 CommandError，
-    /// 同时添加丰富的上下文信息。
-    ///
-    /// # 参数
-    ///
-    /// * `error` - 原始的 ExecuteError
-    /// * `context` - 错误上下文
-    ///
-    /// # 示例
-    ///
-    /// ```ignore
-    /// use execute::error::{CommandError, ErrorContext, ExecuteError};
-    /// use std::path::Path;
-    ///
-    /// let ctx = ErrorContext::new(1, "ls -la", Path::new("/tmp"));
-    /// let exec_err = ExecuteError::Io(std::io::Error::from(std::io::ErrorKind::NotFound));
-    /// let cmd_err = CommandError::from_execute_error(exec_err, ctx);
-    /// ```
     pub fn from_execute_error(error: ExecuteError, context: ErrorContext) -> Self {
         match error {
             ExecuteError::Io(e) => CommandError::ExecutionFailed { context, source: e },
             ExecuteError::Timeout(timeout) => CommandError::Timeout {
                 context,
                 configured_timeout: timeout,
-                actual_duration: timeout, // 实际时长至少是超时值
+                actual_duration: timeout,
             },
             ExecuteError::Child(msg) => CommandError::ExecutionFailed {
                 context,
@@ -281,92 +238,18 @@ pub enum SubmitError {
     Stopped,
 }
 
-/// 超时错误类型
-///
-/// 此枚举区分不同类型的超时错误，提供更精确的错误信息。
-/// 通过区分启动超时和执行超时，可以更好地诊断问题。
-///
-/// # 示例
-///
-/// ```ignore
-/// use execute::error::TimeoutError;
-/// use std::time::Duration;
-///
-/// let spawn_timeout = TimeoutError::SpawnTimeout(Duration::from_secs(5));
-/// let exec_timeout = TimeoutError::ExecutionTimeout(Duration::from_secs(30));
-/// ```
-#[derive(Error, Debug, Clone, PartialEq, Eq)]
-pub enum TimeoutError {
-    /// 启动超时
-    ///
-    /// 当命令启动时间超过配置的启动超时时返回此错误。
-    /// 这通常表示系统资源不足或进程创建遇到问题。
-    ///
-    /// # 示例
-    ///
-    /// ```ignore
-    /// use execute::error::TimeoutError;
-    /// use std::time::Duration;
-    ///
-    /// let error = TimeoutError::SpawnTimeout(Duration::from_secs(5));
-    /// println!("{}", error); // "Spawn timeout after 5s"
-    /// ```
-    #[error("Spawn timeout after {0:?}")]
-    SpawnTimeout(Duration),
-
-    /// 执行超时
-    ///
-    /// 当命令执行时间超过配置的执行超时时返回此错误。
-    /// 这表示命令运行时间过长，已被强制终止。
-    ///
-    /// # 示例
-    ///
-    /// ```ignore
-    /// use execute::error::TimeoutError;
-    /// use std::time::Duration;
-    ///
-    /// let error = TimeoutError::ExecutionTimeout(Duration::from_secs(30));
-    /// println!("{}", error); // "Execution timeout after 30s"
-    /// ```
-    #[error("Execution timeout after {0:?}")]
-    ExecutionTimeout(Duration),
-}
-
 /// 取消错误类型
-///
-/// 此枚举表示在取消任务时可能遇到的错误。
-///
-/// # 示例
-///
-/// ```ignore
-/// use execute::error::CancelError;
-///
-/// let error = CancelError::AlreadyCompleted;
-/// println!("{}", error); // "Task already completed"
-/// ```
 #[derive(Error, Debug, Clone, PartialEq, Eq)]
 pub enum CancelError {
-    /// 任务已完成
-    ///
-    /// 当尝试取消已完成的任务时返回此错误。
     #[error("Task already completed")]
     AlreadyCompleted,
 
-    /// 任务已取消
-    ///
-    /// 当尝试取消已经被取消的任务时返回此错误。
     #[error("Task already cancelled")]
     AlreadyCancelled,
 
-    /// 无效的任务状态
-    ///
-    /// 当任务处于无法取消的状态时返回此错误。
     #[error("Invalid task state for cancellation")]
     InvalidState,
 
-    /// 进程终止失败
-    ///
-    /// 当无法终止正在运行的进程时返回此错误。
     #[error("Failed to kill process: {0}")]
     KillFailed(String),
 }

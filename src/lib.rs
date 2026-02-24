@@ -8,7 +8,6 @@ mod logging;
 mod metrics;
 mod pipeline;
 mod pool;
-mod pool_seg;
 mod process_pool;
 mod semaphore;
 mod task_handle;
@@ -28,7 +27,7 @@ pub use config::{
     RetryStrategy, ShutdownConfig, TimeoutConfig,
 };
 pub use error::{
-    CancelError, CommandError, ConfigError, ErrorContext, ExecuteError, ShutdownError, SubmitError, TimeoutError,
+    CancelError, CommandError, ConfigError, ErrorContext, ExecuteError, ShutdownError, SubmitError,
 };
 pub use executor::{
     CommandExecutor, StdCommandExecutor, apply_env_config, execute_command_with_context,
@@ -40,7 +39,6 @@ pub use logging::{LogConfig, LogFormat, LogLevel, LogTarget};
 pub use metrics::{Metrics, MetricsSnapshot};
 pub use pipeline::{Pipeline, PipelineExecutor, PipelineStage};
 pub use pool::{CommandPool, TaskItem};
-pub use pool_seg::CommandPoolSeg;
 pub use process_pool::ProcessPool;
 pub use semaphore::{Semaphore, SemaphoreGuard};
 pub use task_handle::{CancellationToken, TaskHandle, TaskResult, TaskState, TaskWithResult};
