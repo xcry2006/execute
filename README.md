@@ -51,12 +51,9 @@
 ```toml
 [dependencies]
 execute = "0.1"
-crossbeam-queue = "0.3"
-wait-timeout = "0.2"
-thiserror = "2.0.17"
-tracing = "0.1"
-tracing-subscriber = "0.3"
 ```
+
+如果需要使用特定的功能，可以启用相应的 feature（参见 [Cargo.toml](Cargo.toml) 中的 feature 定义）。
 
 ### 基础使用
 
