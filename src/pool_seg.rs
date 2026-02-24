@@ -9,7 +9,7 @@ use crate::config::CommandConfig;
 use crate::executor::{CommandExecutor, execute_command};
 use crate::semaphore::Semaphore;
 
-/// 基于无锁队列（SegQueue）的命令池 | Lock-free command pool using SegQueue
+/// 基于无锁队列的命令池
 ///
 /// 相比 CommandPool 的 Mutex-based 实现，SegQueue 提供更高的并发吞吐量。
 /// 特别是在多生产者场景下性能更优（避免了锁竞争）。
@@ -21,7 +21,7 @@ pub struct CommandPoolSeg {
 }
 
 impl CommandPoolSeg {
-    /// 创建一个新的无锁命令池 | Create a new lock-free command pool
+    /// 创建一个新的无锁命令池
     pub fn new() -> Self {
         Self {
             tasks: Arc::new(SegQueue::new()),
@@ -30,7 +30,7 @@ impl CommandPoolSeg {
         }
     }
 
-    /// 无阻塞地推入任务 | Push a task without blocking (lock-free)
+    /// 无阻塞地推入任务
     ///
     /// # 返回值
     ///
@@ -59,7 +59,7 @@ impl CommandPoolSeg {
         Ok(())
     }
 
-    /// 无阻塞地尝试弹出任务 | Try to pop a task without blocking
+    /// 无阻塞地尝试弹出任务
     pub fn pop_task(&self) -> Option<CommandConfig> {
         self.tasks.pop()
     }
@@ -69,7 +69,7 @@ impl CommandPoolSeg {
         self.tasks.is_empty()
     }
 
-    /// 停止命令池，不再接受新任务 | Stop the command pool from accepting new tasks
+    /// 停止命令池，不再接受新任务
     ///
     /// 调用此方法后，命令池将停止接受新任务提交，但会继续执行队列中已有的任务。
     /// 工作线程会在处理完队列中的所有任务后自动退出。
