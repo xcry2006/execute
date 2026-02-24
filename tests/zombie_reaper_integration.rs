@@ -11,7 +11,7 @@ fn test_command_pool_with_zombie_reaper() {
     let pool = CommandPool::with_config(config);
 
     // 启动执行器
-    pool.start_executor(Duration::from_millis(50));
+    pool.start_executor();
 
     // 提交一些任务
     for i in 0..5 {
@@ -32,7 +32,7 @@ fn test_command_pool_without_zombie_reaper() {
     let pool = CommandPool::new();
 
     // 启动执行器
-    pool.start_executor(Duration::from_millis(50));
+    pool.start_executor();
 
     // 提交一些任务
     for i in 0..5 {
@@ -58,7 +58,7 @@ fn test_zombie_reaper_cleans_up_processes() {
         .with_zombie_reaper_interval(Duration::from_millis(100));
 
     let pool = CommandPool::with_config(config);
-    pool.start_executor(Duration::from_millis(50));
+    pool.start_executor();
 
     // 提交一些快速完成的任务，这些任务会产生子进程
     for i in 0..10 {

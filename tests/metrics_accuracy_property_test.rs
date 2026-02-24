@@ -75,7 +75,7 @@ proptest! {
 
         // 创建命令池并启动
         let pool = CommandPool::new();
-        pool.start_executor(Duration::from_millis(50));
+        pool.start_executor();
 
         // 获取初始指标
         let initial_metrics = pool.metrics();
@@ -168,7 +168,7 @@ proptest! {
 
         // 创建命令池并启动
         let pool = CommandPool::new();
-        pool.start_executor(Duration::from_millis(50));
+        pool.start_executor();
 
         // 生成混合命令
         let commands = mixed_commands_strategy(task_count)
@@ -243,7 +243,7 @@ fn test_metrics_accuracy_single_success_task() {
 
     // 创建命令池并启动
     let pool = CommandPool::new();
-    pool.start_executor(Duration::from_millis(50));
+    pool.start_executor();
 
     // 验证初始指标
     let initial = pool.metrics();
@@ -290,7 +290,7 @@ fn test_metrics_accuracy_single_failure_task() {
 
     // 创建命令池并启动
     let pool = CommandPool::new();
-    pool.start_executor(Duration::from_millis(50));
+    pool.start_executor();
 
     // 提交一个失败的任务
     let config = CommandConfig::new("nonexistent_command_xyz_123", vec![]);
@@ -324,7 +324,7 @@ fn test_metrics_accuracy_concurrent_tasks() {
 
     // 创建命令池并启动
     let pool = CommandPool::new();
-    pool.start_executor(Duration::from_millis(50));
+    pool.start_executor();
 
     // 并发提交多个任务
     let task_count = 10;
@@ -369,7 +369,7 @@ fn test_metrics_accuracy_queued_and_running() {
 
     // 创建命令池并启动（单个工作线程以便控制执行）
     let pool = CommandPool::new();
-    pool.start_executor(Duration::from_millis(50));
+    pool.start_executor();
 
     // 提交多个任务
     let task_count = 5;
@@ -418,7 +418,7 @@ fn test_metrics_accuracy_invariant() {
 
     // 创建命令池并启动
     let pool = CommandPool::new();
-    pool.start_executor(Duration::from_millis(50));
+    pool.start_executor();
 
     // 提交任务
     let task_count = 15;

@@ -13,7 +13,7 @@ fn test_metrics_basic() {
     let pool = CommandPool::with_config(config);
 
     // 启动执行器
-    pool.start_executor(Duration::from_millis(50));
+    pool.start_executor();
 
     // 提交一些任务
     for i in 0..3 {

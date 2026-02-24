@@ -1,5 +1,4 @@
 use execute::{CommandConfig, CommandPool, TaskState};
-use std::time::Duration;
 
 #[test]
 fn test_submit_returns_task_handle() {
@@ -18,7 +17,7 @@ fn test_submit_returns_task_handle() {
 #[test]
 fn test_task_handle_wait_for_result() {
     let pool = CommandPool::new();
-    pool.start_executor(Duration::from_millis(10));
+    pool.start_executor();
 
     // Submit a task
     let handle = pool
@@ -60,7 +59,7 @@ fn test_cancel_queued_task() {
 #[test]
 fn test_multiple_handles_from_same_pool() {
     let pool = CommandPool::new();
-    pool.start_executor(Duration::from_millis(10));
+    pool.start_executor();
 
     // Submit multiple tasks
     let handle1 = pool
@@ -93,7 +92,7 @@ fn test_multiple_handles_from_same_pool() {
 #[test]
 fn test_task_state_transitions() {
     let pool = CommandPool::new();
-    pool.start_executor(Duration::from_millis(10));
+    pool.start_executor();
 
     // Submit a quick task
     let handle = pool

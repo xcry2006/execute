@@ -51,7 +51,7 @@ proptest! {
             ..Default::default()
         };
         let pool = CommandPool::with_config(config);
-        pool.start_executor(Duration::from_millis(50));
+        pool.start_executor();
 
         // 提交一些初始任务（可选）
         for _ in 0..initial_task_count {
@@ -114,7 +114,7 @@ proptest! {
     ) {
         // 创建命令池
         let pool = CommandPool::new();
-        pool.start_executor(Duration::from_millis(50));
+        pool.start_executor();
 
         // 提交一些短时间运行的任务
         for _ in 0..3 {
@@ -171,7 +171,7 @@ proptest! {
 #[test]
 fn test_shutdown_rejects_single_task() {
     let pool = CommandPool::new();
-    pool.start_executor(Duration::from_millis(50));
+    pool.start_executor();
 
     // 关闭命令池
     let result = pool.shutdown_with_timeout(Duration::from_secs(1));
@@ -197,7 +197,7 @@ fn test_shutdown_rejects_single_task() {
 #[test]
 fn test_shutdown_rejects_multiple_tasks() {
     let pool = CommandPool::new();
-    pool.start_executor(Duration::from_millis(50));
+    pool.start_executor();
 
     // 关闭命令池
     let _ = pool.shutdown_with_timeout(Duration::from_secs(1));
@@ -217,7 +217,7 @@ fn test_shutdown_rejects_multiple_tasks() {
 #[test]
 fn test_try_push_task_after_shutdown() {
     let pool = CommandPool::new();
-    pool.start_executor(Duration::from_millis(50));
+    pool.start_executor();
 
     // 关闭命令池
     let _ = pool.shutdown_with_timeout(Duration::from_secs(1));
@@ -235,7 +235,7 @@ fn test_try_push_task_after_shutdown() {
 #[test]
 fn test_shutdown_rejects_tasks_immediately() {
     let pool = CommandPool::new();
-    pool.start_executor(Duration::from_millis(50));
+    pool.start_executor();
 
     // 提交一个快速任务
     let _ = pool.push_task(CommandConfig::new("echo", vec!["quick".to_string()]));
@@ -262,7 +262,7 @@ fn test_shutdown_with_queue_limit() {
         ..Default::default()
     };
     let pool = CommandPool::with_config_and_limit(config, 5);
-    pool.start_executor(Duration::from_millis(50));
+    pool.start_executor();
 
     // 关闭命令池
     let _ = pool.shutdown_with_timeout(Duration::from_secs(1));
@@ -286,7 +286,7 @@ fn test_shutdown_flag_checked_during_wait() {
         ..Default::default()
     };
     let pool = CommandPool::with_config_and_limit(config, 2);
-    pool.start_executor(Duration::from_millis(50));
+    pool.start_executor();
 
     // 填满队列（使用长时间运行的任务）
     let _ = pool.push_task(CommandConfig::new("sleep", vec!["2".to_string()]));

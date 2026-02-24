@@ -11,7 +11,7 @@ use std::time::{Duration, Instant};
 fn test_workers_wait_efficiently_when_queue_empty() {
     // 创建命令池并启动执行器
     let pool = CommandPool::new();
-    pool.start_executor(Duration::from_millis(100));
+    pool.start_executor();
 
     // 等待一段时间，确保工作线程已启动并进入等待状态
     thread::sleep(Duration::from_millis(200));
@@ -40,7 +40,7 @@ fn test_multiple_workers_wake_up_for_tasks() {
     // 创建有多个工作线程的命令池
     let config = execute::ExecutionConfig::default().with_workers(4);
     let pool = CommandPool::with_config(config);
-    pool.start_executor(Duration::from_millis(100));
+    pool.start_executor();
 
     // 等待工作线程启动
     thread::sleep(Duration::from_millis(100));
@@ -70,7 +70,7 @@ fn test_multiple_workers_wake_up_for_tasks() {
 fn test_shutdown_wakes_waiting_workers() {
     // 创建命令池
     let pool = CommandPool::new();
-    pool.start_executor(Duration::from_millis(100));
+    pool.start_executor();
 
     // 等待工作线程进入等待状态
     thread::sleep(Duration::from_millis(100));
@@ -102,7 +102,7 @@ fn test_shutdown_wakes_waiting_workers() {
 fn test_task_execution_latency_is_low() {
     // 创建命令池
     let pool = CommandPool::new();
-    pool.start_executor(Duration::from_millis(100));
+    pool.start_executor();
 
     // 等待工作线程启动
     thread::sleep(Duration::from_millis(100));
@@ -142,7 +142,7 @@ fn test_task_execution_latency_is_low() {
 fn test_task_execution_latency_with_condition_variables() {
     // 创建命令池
     let pool = CommandPool::new();
-    pool.start_executor(Duration::from_millis(100));
+    pool.start_executor();
 
     // 等待工作线程启动
     thread::sleep(Duration::from_millis(100));
@@ -193,7 +193,7 @@ fn test_concurrent_task_execution_latency() {
     // 创建有多个工作线程的命令池
     let config = execute::ExecutionConfig::default().with_workers(4);
     let pool = CommandPool::with_config(config);
-    pool.start_executor(Duration::from_millis(100));
+    pool.start_executor();
 
     // 等待工作线程启动
     thread::sleep(Duration::from_millis(100));
@@ -231,7 +231,7 @@ fn test_concurrent_task_execution_latency() {
 fn test_idle_cpu_usage_is_low() {
     // 创建命令池
     let pool = CommandPool::new();
-    pool.start_executor(Duration::from_millis(100));
+    pool.start_executor();
 
     // 等待工作线程启动并进入等待状态
     thread::sleep(Duration::from_millis(200));
@@ -269,7 +269,7 @@ fn test_multiple_idle_workers_low_cpu() {
     // 创建有多个工作线程的命令池
     let config = execute::ExecutionConfig::default().with_workers(8);
     let pool = CommandPool::with_config(config);
-    pool.start_executor(Duration::from_millis(100));
+    pool.start_executor();
 
     // 等待所有工作线程启动并进入等待状态
     thread::sleep(Duration::from_millis(300));
@@ -305,7 +305,7 @@ fn test_multiple_idle_workers_low_cpu() {
 fn test_worker_wakeup_latency() {
     // 创建命令池
     let pool = CommandPool::new();
-    pool.start_executor(Duration::from_millis(100));
+    pool.start_executor();
 
     // 等待工作线程进入空闲等待状态
     thread::sleep(Duration::from_millis(200));
@@ -351,7 +351,7 @@ fn test_sustained_throughput() {
     // 创建命令池
     let config = execute::ExecutionConfig::default().with_workers(4);
     let pool = CommandPool::with_config(config);
-    pool.start_executor(Duration::from_millis(100));
+    pool.start_executor();
 
     // 等待工作线程启动
     thread::sleep(Duration::from_millis(100));
@@ -419,7 +419,7 @@ fn test_actual_cpu_usage_when_idle() {
     // 创建命令池
     let config = execute::ExecutionConfig::default().with_workers(4);
     let pool = CommandPool::with_config(config);
-    pool.start_executor(Duration::from_millis(100));
+    pool.start_executor();
 
     // 等待工作线程启动
     thread::sleep(Duration::from_millis(200));
@@ -465,7 +465,7 @@ fn test_actual_cpu_usage_when_idle() {
 fn test_condition_variable_notification() {
     // 创建命令池
     let pool = CommandPool::new();
-    pool.start_executor(Duration::from_millis(100));
+    pool.start_executor();
 
     // 等待工作线程进入等待状态
     thread::sleep(Duration::from_millis(200));

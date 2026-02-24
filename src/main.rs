@@ -26,7 +26,7 @@ fn main() -> Result<(), execute::ExecuteError> {
 
     println!("[main] 启动命令池并启动执行器...");
     let command_pool = CommandPool::new();
-    command_pool.start_executor(Duration::from_millis(500));
+    command_pool.start_executor();
 
     let pool_clone = command_pool.clone();
     thread::spawn(move || {

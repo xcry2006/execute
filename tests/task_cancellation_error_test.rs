@@ -9,7 +9,7 @@ use std::time::Duration;
 fn test_cancelled_task_returns_cancelled_error() {
     // 创建命令池
     let pool = CommandPool::new();
-    pool.start_executor(Duration::from_millis(10));
+    pool.start_executor();
 
     // 提交一个长时间运行的任务
     let handle = pool
@@ -50,7 +50,7 @@ fn test_cancelled_task_returns_cancelled_error() {
 fn test_is_cancelled_method() {
     // 创建命令池
     let pool = CommandPool::new();
-    pool.start_executor(Duration::from_millis(10));
+    pool.start_executor();
 
     // 提交任务
     let handle = pool
@@ -81,7 +81,7 @@ fn test_is_cancelled_method() {
 fn test_wait_on_cancelled_task() {
     // 创建命令池
     let pool = CommandPool::new();
-    pool.start_executor(Duration::from_millis(10));
+    pool.start_executor();
 
     // 提交任务
     let handle = pool

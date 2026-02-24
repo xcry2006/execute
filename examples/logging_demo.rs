@@ -22,7 +22,7 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
     let _ = pool.push_task(CommandConfig::new("echo", vec!["Task 3".to_string()]));
 
     // 启动执行器
-    pool.start_executor(Duration::from_millis(100));
+    pool.start_executor();
 
     // 等待任务完成
     std::thread::sleep(Duration::from_secs(1));

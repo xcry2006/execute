@@ -74,7 +74,7 @@ fn test_log_integrity_single_task() {
 
     // 创建命令池并启动
     let pool = CommandPool::new();
-    pool.start_executor(Duration::from_millis(50));
+    pool.start_executor();
 
     // 提交一个简单任务
     let config = CommandConfig::new("echo", vec!["test".to_string()]);
@@ -116,7 +116,7 @@ proptest! {
 
         // 创建命令池并启动
         let pool = CommandPool::new();
-        pool.start_executor(Duration::from_millis(50));
+        pool.start_executor();
 
         // 提交任务
         let handle = match pool.push_task(config.clone()) {
@@ -168,7 +168,7 @@ fn test_log_integrity_for_failed_task() {
 
     // 创建命令池并启动
     let pool = CommandPool::new();
-    pool.start_executor(Duration::from_millis(50));
+    pool.start_executor();
 
     // 提交一个会失败的任务
     let config = CommandConfig::new("false", vec![]);
@@ -202,7 +202,7 @@ fn test_log_integrity_for_timeout_task() {
 
     // 创建命令池并启动
     let pool = CommandPool::new();
-    pool.start_executor(Duration::from_millis(50));
+    pool.start_executor();
 
     // 提交一个会超时的任务
     let config = CommandConfig::new("sleep", vec!["10".to_string()])
@@ -231,7 +231,7 @@ fn test_log_integrity_multiple_tasks() {
 
     // 创建命令池并启动
     let pool = CommandPool::new();
-    pool.start_executor(Duration::from_millis(50));
+    pool.start_executor();
 
     // 提交多个任务
     let mut handles = Vec::new();
@@ -263,7 +263,7 @@ fn test_log_integrity_with_concurrent_tasks() {
 
     // 创建命令池并启动（多个工作线程）
     let pool = CommandPool::new();
-    pool.start_executor(Duration::from_millis(50));
+    pool.start_executor();
 
     // 并发提交多个任务
     let handles: Vec<_> = (0..20)

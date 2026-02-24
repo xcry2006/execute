@@ -66,7 +66,7 @@ fn bench_executor() {
             let _ = pool.push_task(CommandConfig::new("true", vec![]));
         }
         let start = Instant::now();
-        pool.start_executor(Duration::from_millis(1));
+        pool.start_executor();
         // wait until pool is empty
         while !pool.is_empty() {
             thread::sleep(Duration::from_millis(10));

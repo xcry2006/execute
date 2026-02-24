@@ -17,7 +17,7 @@ fn test_commandpool_retry_on_timeout() {
     let _ = tracing_subscriber::fmt().with_test_writer().try_init();
 
     let pool = CommandPool::new();
-    pool.start_executor(Duration::from_millis(100));
+    pool.start_executor();
 
     // 创建一个会超时的命令，配置重试策略
     let retry_policy = RetryPolicy::new(
@@ -52,7 +52,7 @@ fn test_commandpool_no_retry_on_nonzero_exit() {
     let _ = tracing_subscriber::fmt().with_test_writer().try_init();
 
     let pool = CommandPool::new();
-    pool.start_executor(Duration::from_millis(100));
+    pool.start_executor();
 
     // 创建一个返回非零退出码的命令，配置重试策略
     let retry_policy = RetryPolicy::new(2, RetryStrategy::FixedInterval(Duration::from_millis(50)));
@@ -83,7 +83,7 @@ fn test_commandpool_retry_success_after_retry() {
     let _ = tracing_subscriber::fmt().with_test_writer().try_init();
 
     let pool = CommandPool::new();
-    pool.start_executor(Duration::from_millis(100));
+    pool.start_executor();
 
     // 创建一个会成功的命令，配置重试策略
     // 即使配置了重试，成功的命令也不应该重试
@@ -113,7 +113,7 @@ fn test_retry_without_retry_policy() {
     let _ = tracing_subscriber::fmt().with_test_writer().try_init();
 
     let pool = CommandPool::new();
-    pool.start_executor(Duration::from_millis(100));
+    pool.start_executor();
 
     // 不配置重试策略，使用会超时的命令
     let config =
@@ -139,7 +139,7 @@ fn test_metrics_accuracy_with_retry() {
     let _ = tracing_subscriber::fmt().with_test_writer().try_init();
 
     let pool = CommandPool::new();
-    pool.start_executor(Duration::from_millis(100));
+    pool.start_executor();
 
     // 提交多个任务，一些有重试策略，一些没有
     let retry_policy = RetryPolicy::new(1, RetryStrategy::FixedInterval(Duration::from_millis(50)));

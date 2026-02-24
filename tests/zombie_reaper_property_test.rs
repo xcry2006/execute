@@ -56,7 +56,7 @@ proptest! {
             .with_zombie_reaper_interval(Duration::from_millis(check_interval_ms));
 
         let pool = CommandPool::with_config(config);
-        pool.start_executor(Duration::from_millis(50));
+        pool.start_executor();
 
         // 提交快速完成的任务，这些任务会产生子进程
         let mut handles = Vec::new();
@@ -119,7 +119,7 @@ proptest! {
             .with_zombie_reaper_interval(Duration::from_secs(5)); // 5秒，确保不会在测试期间运行
 
         let pool = CommandPool::with_config(config);
-        pool.start_executor(Duration::from_millis(50));
+        pool.start_executor();
 
         // 提交任务
         let mut handles = Vec::new();
@@ -197,7 +197,7 @@ fn test_zombie_reaper_with_fast_tasks() {
         .with_zombie_reaper_interval(Duration::from_millis(500));
 
     let pool = CommandPool::with_config(config);
-    pool.start_executor(Duration::from_millis(50));
+    pool.start_executor();
 
     // 提交多个快速任务
     let task_count = 10;
@@ -243,7 +243,7 @@ fn test_zombie_reaper_with_shell_commands() {
         .with_zombie_reaper_interval(Duration::from_millis(500));
 
     let pool = CommandPool::with_config(config);
-    pool.start_executor(Duration::from_millis(50));
+    pool.start_executor();
 
     // 提交 shell 命令（更容易产生子进程）
     let task_count = 15;
@@ -292,7 +292,7 @@ fn test_zombie_cleanup_on_shutdown() {
         .with_zombie_reaper_interval(Duration::from_secs(30)); // 30秒，确保不会在测试期间运行
 
     let pool = CommandPool::with_config(config);
-    pool.start_executor(Duration::from_millis(50));
+    pool.start_executor();
 
     // 提交任务
     let task_count = 10;
@@ -343,7 +343,7 @@ fn test_zombie_reaper_periodic_cleanup() {
         .with_zombie_reaper_interval(Duration::from_millis(500));
 
     let pool = CommandPool::with_config(config);
-    pool.start_executor(Duration::from_millis(50));
+    pool.start_executor();
 
     // 分批提交任务，观察清理器的周期性行为
     for batch in 0..3 {
@@ -397,7 +397,7 @@ fn test_zombie_reaper_with_concurrent_tasks() {
         .with_zombie_reaper_interval(Duration::from_millis(500));
 
     let pool = CommandPool::with_config(config);
-    pool.start_executor(Duration::from_millis(50));
+    pool.start_executor();
 
     // 并发提交大量任务
     let task_count = 20;

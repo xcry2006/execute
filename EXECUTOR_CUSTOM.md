@@ -268,7 +268,7 @@ let pool = CommandPool::with_config(ExecutionConfig {
     ..Default::default()
 });
 
-pool.start_executor(Duration::from_millis(100));
+pool.start_executor();
 
 let health = pool.health_check();
 
@@ -507,7 +507,7 @@ let config = ExecutionConfig::new()
     .with_zombie_reaper_interval(Duration::from_secs(5));
 
 let pool = CommandPool::with_config(config);
-pool.start_executor(Duration::from_millis(100));
+pool.start_executor();
 
 // 僵尸进程会自动清理
 ```

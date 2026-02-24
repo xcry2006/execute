@@ -314,7 +314,7 @@ impl CommandPool {
     }
 
     /// 启动执行器
-    pub fn start_executor(&self, _interval: Duration) {
+    pub fn start_executor(&self) {
         // 如果已经在运行，先停止
         if self.running.load(Ordering::SeqCst) {
             return;
@@ -357,7 +357,7 @@ impl CommandPool {
     /// use execute::CommandPool;
     ///
     /// let pool = CommandPool::new();
-    /// pool.start_executor(Duration::from_millis(100));
+    /// pool.start_executor();
     /// // ... 提交任务 ...
     /// pool.shutdown().unwrap();
     /// ```
@@ -386,7 +386,7 @@ impl CommandPool {
     /// use std::time::Duration;
     ///
     /// let pool = CommandPool::new();
-    /// pool.start_executor(Duration::from_millis(100));
+    /// pool.start_executor();
     /// // ... 提交任务 ...
     /// pool.shutdown_with_timeout(Duration::from_secs(60)).unwrap();
     /// ```
@@ -780,7 +780,7 @@ impl CommandPool {
     /// use execute::CommandPool;
     ///
     /// let pool = CommandPool::new();
-    /// pool.start_executor(Duration::from_millis(100));
+    /// pool.start_executor();
     ///
     /// let health = pool.health_check();
     /// match health.status {

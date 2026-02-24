@@ -10,7 +10,7 @@ fn test_health_check_healthy() {
     });
 
     // 启动执行器
-    pool.start_executor(Duration::from_millis(100));
+    pool.start_executor();
 
     // 等待一小段时间让工作线程启动
     std::thread::sleep(Duration::from_millis(200));
@@ -104,7 +104,7 @@ fn test_health_check_details() {
         ..Default::default()
     });
 
-    pool.start_executor(Duration::from_millis(100));
+    pool.start_executor();
 
     // 等待工作线程启动
     std::thread::sleep(Duration::from_millis(200));

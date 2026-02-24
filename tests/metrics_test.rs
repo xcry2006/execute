@@ -13,7 +13,7 @@ fn test_metrics_collection() {
     let pool = CommandPool::with_config(config);
 
     // 启动执行器
-    pool.start_executor(Duration::from_millis(50));
+    pool.start_executor();
 
     // 提交一些任务
     for i in 0..5 {
@@ -72,7 +72,7 @@ fn test_metrics_percentiles_with_many_tasks() {
     let pool = CommandPool::with_config(config);
 
     // 启动执行器
-    pool.start_executor(Duration::from_millis(50));
+    pool.start_executor();
 
     // 提交更多任务以获得更好的百分位数统计
     for i in 0..20 {
@@ -120,7 +120,7 @@ fn test_metrics_success_rate() {
     let pool = CommandPool::with_config(config);
 
     // 启动执行器
-    pool.start_executor(Duration::from_millis(50));
+    pool.start_executor();
 
     // 提交一些成功的任务
     for i in 0..5 {

@@ -72,7 +72,7 @@ fn test_log_level_filtering_info() {
 
     // 创建命令池并启动
     let pool = CommandPool::new();
-    pool.start_executor(Duration::from_millis(50));
+    pool.start_executor();
 
     // 提交任务（会产生 Info 级别的日志）
     let config = CommandConfig::new("echo", vec!["test".to_string()]);
@@ -100,7 +100,7 @@ fn test_log_level_filtering_warn() {
 
     // 创建命令池并启动
     let pool = CommandPool::new();
-    pool.start_executor(Duration::from_millis(50));
+    pool.start_executor();
 
     // 提交任务
     let config = CommandConfig::new("echo", vec!["test".to_string()]);
@@ -127,7 +127,7 @@ fn test_log_level_filtering_error() {
 
     // 创建命令池并启动
     let pool = CommandPool::new();
-    pool.start_executor(Duration::from_millis(50));
+    pool.start_executor();
 
     // 提交任务
     let config = CommandConfig::new("echo", vec!["test".to_string()]);
@@ -154,7 +154,7 @@ fn test_log_level_filtering_debug() {
 
     // 创建命令池并启动
     let pool = CommandPool::new();
-    pool.start_executor(Duration::from_millis(50));
+    pool.start_executor();
 
     // 提交任务
     let config = CommandConfig::new("echo", vec!["test".to_string()]);
@@ -181,7 +181,7 @@ fn test_log_level_filtering_trace() {
 
     // 创建命令池并启动
     let pool = CommandPool::new();
-    pool.start_executor(Duration::from_millis(50));
+    pool.start_executor();
 
     // 提交任务
     let config = CommandConfig::new("echo", vec!["test".to_string()]);
@@ -223,7 +223,7 @@ proptest! {
 
         // 创建命令池并启动
         let pool = CommandPool::new();
-        pool.start_executor(Duration::from_millis(50));
+        pool.start_executor();
 
         // 提交任务
         let config = CommandConfig::new("echo", vec!["test".to_string()]);

@@ -52,7 +52,7 @@ proptest! {
         });
 
         // 启动执行器
-        pool.start_executor(Duration::from_millis(50));
+        pool.start_executor();
 
         // 等待工作线程启动
         std::thread::sleep(Duration::from_millis(200));
@@ -139,7 +139,7 @@ proptest! {
         );
 
         // 启动执行器
-        pool.start_executor(Duration::from_millis(50));
+        pool.start_executor();
 
         // 等待工作线程启动
         std::thread::sleep(Duration::from_millis(200));
@@ -306,7 +306,7 @@ proptest! {
 
         // 可选：启动执行器
         if start_executor {
-            pool.start_executor(Duration::from_millis(50));
+            pool.start_executor();
             std::thread::sleep(Duration::from_millis(200));
         }
 
@@ -406,7 +406,7 @@ fn test_health_status_healthy_example() {
         ..Default::default()
     });
 
-    pool.start_executor(Duration::from_millis(50));
+    pool.start_executor();
     std::thread::sleep(Duration::from_millis(200));
 
     // 执行健康检查
@@ -442,7 +442,7 @@ fn test_health_status_degraded_example() {
     );
 
     // 启动执行器
-    pool.start_executor(Duration::from_millis(50));
+    pool.start_executor();
     std::thread::sleep(Duration::from_millis(200));
 
     // 填充队列到高使用率

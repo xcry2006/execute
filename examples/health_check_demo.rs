@@ -19,7 +19,7 @@ fn main() {
     print_health_status(&health);
 
     // 启动执行器
-    pool.start_executor(Duration::from_millis(100));
+    pool.start_executor();
     std::thread::sleep(Duration::from_millis(200));
 
     // 场景 2: 正常运行 - 应该是 Healthy

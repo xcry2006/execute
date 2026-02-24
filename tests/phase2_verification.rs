@@ -14,7 +14,7 @@ fn test_metrics_collection() {
     let pool = CommandPool::new();
 
     // 启动执行器
-    pool.start_executor(Duration::from_millis(100));
+    pool.start_executor();
 
     // 提交一些任务
     pool.push_task(CommandConfig::new("echo", vec!["test1".to_string()]))
@@ -44,7 +44,7 @@ fn test_health_check() {
     let pool = CommandPool::new();
 
     // 启动执行器
-    pool.start_executor(Duration::from_millis(100));
+    pool.start_executor();
 
     // 执行健康检查
     let health = pool.health_check();
@@ -67,7 +67,7 @@ fn test_resource_limits_output_size() {
     let pool = CommandPool::new();
 
     // 启动执行器
-    pool.start_executor(Duration::from_millis(100));
+    pool.start_executor();
 
     // 创建资源限制：最大输出 100 字节
     let limits = ResourceLimits::new().with_max_output_size(100);
@@ -91,7 +91,7 @@ fn test_zombie_reaper_integration() {
     let pool = CommandPool::new();
 
     // 启动执行器
-    pool.start_executor(Duration::from_millis(100));
+    pool.start_executor();
 
     // 提交一些短命令
     for i in 0..5 {
@@ -118,7 +118,7 @@ fn test_phase2_integration() {
     let pool = CommandPool::new();
 
     // 启动执行器
-    pool.start_executor(Duration::from_millis(100));
+    pool.start_executor();
 
     // 1. 提交多个任务
     println!("1. 提交任务...");

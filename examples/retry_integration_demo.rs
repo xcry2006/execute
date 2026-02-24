@@ -30,7 +30,7 @@ fn demo_commandpool_fixed_interval_retry() {
     println!("   配置: 最多重试 2 次，每次间隔 100ms");
 
     let pool = CommandPool::new();
-    pool.start_executor(Duration::from_millis(50));
+    pool.start_executor();
 
     // 创建会超时的命令，配置固定间隔重试
     let retry_policy = RetryPolicy::new(
@@ -64,7 +64,7 @@ fn demo_commandpool_exponential_backoff_retry() {
     println!("   配置: 最多重试 3 次，初始间隔 50ms，最大 500ms，倍数 2.0");
 
     let pool = CommandPool::new();
-    pool.start_executor(Duration::from_millis(50));
+    pool.start_executor();
 
     // 创建会超时的命令，配置指数退避重试
     let retry_policy = RetryPolicy::new(
@@ -102,7 +102,7 @@ fn demo_metrics_accuracy_with_retry() {
     println!("   验证: 即使有重试，指标仍然准确记录任务数量");
 
     let pool = CommandPool::new();
-    pool.start_executor(Duration::from_millis(50));
+    pool.start_executor();
 
     let retry_policy = RetryPolicy::new(2, RetryStrategy::FixedInterval(Duration::from_millis(50)));
 

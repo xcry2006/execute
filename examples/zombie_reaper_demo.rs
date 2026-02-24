@@ -18,7 +18,7 @@ fn main() {
     let pool = CommandPool::with_config(config);
 
     println!("Starting command pool with zombie reaper (check interval: 5s)...");
-    pool.start_executor(Duration::from_millis(100));
+    pool.start_executor();
 
     // 提交一些任务
     println!("\nSubmitting 10 tasks...");

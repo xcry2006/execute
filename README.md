@@ -63,7 +63,7 @@ use std::time::Duration;
 
 let pool = CommandPool::new();
 pool.push_task(CommandConfig::new("echo", vec!["hello".to_string()]));
-pool.start_executor(Duration::from_millis(100));
+pool.start_executor();
 ```
 
 ### 使用配置构建器

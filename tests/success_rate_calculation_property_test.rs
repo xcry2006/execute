@@ -68,7 +68,7 @@ proptest! {
 
         // 创建命令池并启动
         let pool = CommandPool::new();
-        pool.start_executor(Duration::from_millis(50));
+        pool.start_executor();
 
         // 计算成功和失败任务的数量
         let success_count = (task_count as f64 * success_ratio).round() as usize;
@@ -160,7 +160,7 @@ proptest! {
 
         // 创建命令池并启动
         let pool = CommandPool::new();
-        pool.start_executor(Duration::from_millis(50));
+        pool.start_executor();
 
         // 提交全部成功的任务
         let mut handles = Vec::new();
@@ -227,7 +227,7 @@ proptest! {
 
         // 创建命令池并启动
         let pool = CommandPool::new();
-        pool.start_executor(Duration::from_millis(50));
+        pool.start_executor();
 
         // 提交全部失败的任务
         let mut handles = Vec::new();
@@ -290,7 +290,7 @@ fn test_success_rate_zero_tasks() {
 
     // 创建命令池并启动
     let pool = CommandPool::new();
-    pool.start_executor(Duration::from_millis(50));
+    pool.start_executor();
 
     // 不提交任何任务
     let metrics = pool.metrics();
@@ -315,7 +315,7 @@ fn test_success_rate_single_success() {
 
     // 创建命令池并启动
     let pool = CommandPool::new();
-    pool.start_executor(Duration::from_millis(50));
+    pool.start_executor();
 
     // 提交一个成功的任务
     let config = CommandConfig::new("echo", vec!["test".to_string()]);
@@ -346,7 +346,7 @@ fn test_success_rate_single_failure() {
 
     // 创建命令池并启动
     let pool = CommandPool::new();
-    pool.start_executor(Duration::from_millis(50));
+    pool.start_executor();
 
     // 提交一个失败的任务
     let config = CommandConfig::new("nonexistent_command_xyz", vec![]);
@@ -377,7 +377,7 @@ fn test_success_rate_mixed_tasks() {
 
     // 创建命令池并启动
     let pool = CommandPool::new();
-    pool.start_executor(Duration::from_millis(50));
+    pool.start_executor();
 
     // 提交混合任务：3个成功，2个失败
     let mut handles = Vec::new();
@@ -429,7 +429,7 @@ fn test_success_rate_incremental_updates() {
 
     // 创建命令池并启动
     let pool = CommandPool::new();
-    pool.start_executor(Duration::from_millis(50));
+    pool.start_executor();
 
     // 提交第一个成功任务
     let config1 = CommandConfig::new("echo", vec!["task1".to_string()]);

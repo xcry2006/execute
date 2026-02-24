@@ -75,7 +75,7 @@ proptest! {
         prop_assert!(handle.is_cancelled(), "is_cancelled() should return true");
 
         // 启动执行器让任务被处理
-        pool.start_executor(Duration::from_millis(10));
+        pool.start_executor();
 
         // 等待任务结果
         let result = handle.wait();
@@ -123,7 +123,7 @@ proptest! {
             ..Default::default()
         };
         let pool = CommandPool::with_config(config);
-        pool.start_executor(Duration::from_millis(10));
+        pool.start_executor();
 
         // 提交长时间运行的任务（使用较短的时间以避免测试超时）
         let handle = pool
@@ -203,7 +203,7 @@ proptest! {
     ) {
         // 创建命令池并启动执行器
         let pool = CommandPool::new();
-        pool.start_executor(Duration::from_millis(10));
+        pool.start_executor();
 
         // 提交任务
         let handle = pool.push_task(cmd).expect("Failed to submit task");
@@ -273,7 +273,7 @@ proptest! {
             ..Default::default()
         };
         let pool = CommandPool::with_config(config);
-        pool.start_executor(Duration::from_millis(10));
+        pool.start_executor();
 
         // 提交多个任务（都使用快速命令以避免超时）
         let mut handles = Vec::new();
@@ -333,7 +333,7 @@ fn test_cancel_queued_task_specific() {
     assert!(handle.is_cancelled());
 
     // 启动执行器
-    pool.start_executor(Duration::from_millis(10));
+    pool.start_executor();
 
     // 等待结果
     let wait_result = handle.wait();
@@ -349,7 +349,7 @@ fn test_cancel_queued_task_specific() {
 fn test_cancel_running_task_specific() {
     // 创建命令池并启动执行器
     let pool = CommandPool::new();
-    pool.start_executor(Duration::from_millis(10));
+    pool.start_executor();
 
     // 提交长时间运行的任务
     let handle = pool
@@ -394,7 +394,7 @@ fn test_cancel_completed_task_fails() {
 
     // 创建命令池并启动执行器
     let pool = CommandPool::new();
-    pool.start_executor(Duration::from_millis(10));
+    pool.start_executor();
 
     // 提交快速任务
     let handle = pool
@@ -445,7 +445,7 @@ fn test_cancel_already_cancelled_task_fails() {
 fn test_multiple_tasks_cancel_independence() {
     // 创建命令池并启动执行器
     let pool = CommandPool::new();
-    pool.start_executor(Duration::from_millis(10));
+    pool.start_executor();
 
     // 提交多个任务
     let handle1 = pool
@@ -486,7 +486,7 @@ fn test_multiple_tasks_cancel_independence() {
 fn test_cancel_returns_correct_error_type() {
     // 创建命令池并启动执行器
     let pool = CommandPool::new();
-    pool.start_executor(Duration::from_millis(10));
+    pool.start_executor();
 
     // 提交任务
     let handle = pool

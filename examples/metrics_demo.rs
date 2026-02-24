@@ -19,7 +19,7 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
     // 创建命令池
     let config = ExecutionConfig::new().with_workers(4);
     let pool = CommandPool::with_config(config);
-    pool.start_executor(Duration::from_millis(50));
+    pool.start_executor();
 
     // 场景 1: 初始状态
     println!("场景 1: 初始状态");

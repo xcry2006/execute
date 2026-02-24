@@ -58,7 +58,7 @@ proptest! {
         });
 
         // 启动执行器
-        pool.start_executor(Duration::from_millis(50));
+        pool.start_executor();
 
         // 等待工作线程启动
         std::thread::sleep(Duration::from_millis(200));
@@ -208,7 +208,7 @@ proptest! {
         });
 
         // 启动执行器
-        pool.start_executor(Duration::from_millis(50));
+        pool.start_executor();
 
         // 等待工作线程启动
         std::thread::sleep(Duration::from_millis(100));
@@ -363,7 +363,7 @@ fn test_health_check_accuracy_empty_queue() {
     );
 
     // 启动执行器
-    pool.start_executor(Duration::from_millis(50));
+    pool.start_executor();
 
     // 等待工作线程启动
     std::thread::sleep(Duration::from_millis(200));
@@ -450,7 +450,7 @@ fn test_health_check_accuracy_all_workers_alive() {
     });
 
     // 启动执行器
-    pool.start_executor(Duration::from_millis(50));
+    pool.start_executor();
 
     // 等待工作线程启动
     std::thread::sleep(Duration::from_millis(200));
@@ -488,7 +488,7 @@ fn test_health_check_accuracy_no_long_running_tasks() {
     });
 
     // 启动执行器
-    pool.start_executor(Duration::from_millis(50));
+    pool.start_executor();
 
     // 等待工作线程启动
     std::thread::sleep(Duration::from_millis(200));
@@ -545,7 +545,7 @@ fn test_health_check_accuracy_consistency() {
     });
 
     // 启动执行器
-    pool.start_executor(Duration::from_millis(50));
+    pool.start_executor();
 
     // 等待工作线程启动
     std::thread::sleep(Duration::from_millis(200));

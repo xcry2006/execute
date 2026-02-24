@@ -4,7 +4,7 @@ use std::time::Duration;
 #[test]
 fn test_shutdown_stops_accepting_tasks() {
     let pool = CommandPool::new();
-    pool.start_executor(Duration::from_millis(100));
+    pool.start_executor();
 
     // 添加一个任务
     let _ = pool.push_task(CommandConfig::new("echo", vec!["test".to_string()]));
@@ -28,7 +28,7 @@ fn test_is_shutting_down() {
 
     assert!(!pool.is_shutting_down());
 
-    pool.start_executor(Duration::from_millis(100));
+    pool.start_executor();
     let _ = pool.shutdown_with_timeout(Duration::from_secs(1));
 
     assert!(pool.is_shutting_down());
@@ -37,7 +37,7 @@ fn test_is_shutting_down() {
 #[test]
 fn test_shutdown_waits_for_tasks() {
     let pool = CommandPool::new();
-    pool.start_executor(Duration::from_millis(50));
+    pool.start_executor();
 
     // 添加几个快速任务
     for i in 0..5 {
@@ -58,7 +58,7 @@ fn test_shutdown_waits_for_tasks() {
 #[test]
 fn test_push_after_shutdown() {
     let pool = CommandPool::new();
-    pool.start_executor(Duration::from_millis(100));
+    pool.start_executor();
 
     let _ = pool.shutdown_with_timeout(Duration::from_secs(1));
 

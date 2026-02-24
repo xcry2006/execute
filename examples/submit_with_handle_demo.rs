@@ -16,7 +16,7 @@ fn main() {
     println!("1. 提交任务并等待结果:");
     {
         let pool = CommandPool::new();
-        pool.start_executor(Duration::from_millis(10));
+        pool.start_executor();
 
         // 提交任务，获取句柄
         let handle = pool
@@ -77,7 +77,7 @@ fn main() {
     println!("3. 多个任务并发执行:");
     {
         let pool = CommandPool::new();
-        pool.start_executor(Duration::from_millis(10));
+        pool.start_executor();
 
         // 提交多个任务
         let mut handles = Vec::new();
@@ -115,7 +115,7 @@ fn main() {
     println!("4. 检查任务状态:");
     {
         let pool = CommandPool::new();
-        pool.start_executor(Duration::from_millis(10));
+        pool.start_executor();
 
         // 提交一个快速任务
         let handle = pool
@@ -150,7 +150,7 @@ fn main() {
     println!("5. 尝试获取结果（非阻塞）:");
     {
         let pool = CommandPool::new();
-        pool.start_executor(Duration::from_millis(10));
+        pool.start_executor();
 
         let handle = pool
             .push_task(CommandConfig::new("echo", vec!["Non-blocking".to_string()]))

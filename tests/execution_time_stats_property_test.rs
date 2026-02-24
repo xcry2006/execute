@@ -56,7 +56,7 @@ proptest! {
 
         // 创建命令池并启动
         let pool = CommandPool::new();
-        pool.start_executor(Duration::from_millis(50));
+        pool.start_executor();
 
         // 生成睡眠时间
         let sleep_durations = sleep_durations_strategy(task_count)
@@ -197,7 +197,7 @@ proptest! {
 
         // 创建命令池并启动
         let pool = CommandPool::new();
-        pool.start_executor(Duration::from_millis(50));
+        pool.start_executor();
 
         // 提交单个任务
         #[cfg(unix)]
@@ -271,7 +271,7 @@ fn test_execution_time_stats_zero_tasks() {
 
     // 创建命令池并启动
     let pool = CommandPool::new();
-    pool.start_executor(Duration::from_millis(50));
+    pool.start_executor();
 
     // 不提交任何任务
     let metrics = pool.metrics();
@@ -296,7 +296,7 @@ fn test_execution_time_stats_known_values() {
 
     // 创建命令池并启动
     let pool = CommandPool::new();
-    pool.start_executor(Duration::from_millis(50));
+    pool.start_executor();
 
     // 提交已知执行时间的任务
     // 使用快速命令以便测试快速完成
@@ -346,7 +346,7 @@ fn test_execution_time_stats_min_max() {
 
     // 创建命令池并启动
     let pool = CommandPool::new();
-    pool.start_executor(Duration::from_millis(50));
+    pool.start_executor();
 
     // 提交不同执行时间的任务
     let mut handles = Vec::new();
@@ -412,7 +412,7 @@ fn test_execution_time_stats_percentiles_ordering() {
 
     // 创建命令池并启动
     let pool = CommandPool::new();
-    pool.start_executor(Duration::from_millis(50));
+    pool.start_executor();
 
     // 提交大量任务以获得有意义的百分位数
     let mut handles = Vec::new();
@@ -478,7 +478,7 @@ fn test_execution_time_stats_incremental_updates() {
 
     // 创建命令池并启动
     let pool = CommandPool::new();
-    pool.start_executor(Duration::from_millis(50));
+    pool.start_executor();
 
     // 提交第一个任务
     let config1 = CommandConfig::new("echo", vec!["task1".to_string()]);

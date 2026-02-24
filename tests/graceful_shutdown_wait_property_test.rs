@@ -44,7 +44,7 @@ proptest! {
             ..Default::default()
         };
         let pool = CommandPool::with_config(config);
-        pool.start_executor(Duration::from_millis(50));
+        pool.start_executor();
 
         // 提交任务
         let mut handles = Vec::new();
@@ -99,7 +99,7 @@ proptest! {
 #[test]
 fn test_shutdown_waits_for_single_task() {
     let pool = CommandPool::new();
-    pool.start_executor(Duration::from_millis(50));
+    pool.start_executor();
 
     // 提交一个需要 200ms 的任务
     let _ = pool.push_task(CommandConfig::new("sleep", vec!["0.2".to_string()]));
@@ -134,7 +134,7 @@ fn test_shutdown_timeout_with_long_running_task() {
     // 注意：由于当前实现限制（JoinHandle::join() 不支持超时），
     // 这个测试验证的是超时检查在 worker 完成后发生，而不是强制终止
     let pool = CommandPool::new();
-    pool.start_executor(Duration::from_millis(50));
+    pool.start_executor();
 
     // 提交一个需要 1 秒的任务（不要太长，避免测试超时）
     let _ = pool.push_task(CommandConfig::new("sleep", vec!["1".to_string()]));
@@ -171,7 +171,7 @@ fn test_shutdown_with_multiple_workers() {
         ..Default::default()
     };
     let pool = CommandPool::with_config(config);
-    pool.start_executor(Duration::from_millis(50));
+    pool.start_executor();
 
     // 提交 3 个并发任务
     for _ in 0..3 {
@@ -203,7 +203,7 @@ fn test_shutdown_with_multiple_workers() {
 #[test]
 fn test_shutdown_with_no_running_tasks() {
     let pool = CommandPool::new();
-    pool.start_executor(Duration::from_millis(50));
+    pool.start_executor();
 
     // 不提交任何任务，直接关闭
     let start = Instant::now();
@@ -229,7 +229,7 @@ fn test_shutdown_waits_for_all_workers() {
         ..Default::default()
     };
     let pool = CommandPool::with_config(config);
-    pool.start_executor(Duration::from_millis(50));
+    pool.start_executor();
 
     // 提交 4 个任务，每个 worker 一个（使用较短的时间）
     for i in 0..4 {
@@ -264,7 +264,7 @@ fn test_shutdown_waits_for_all_workers() {
 #[test]
 fn test_shutdown_idempotent() {
     let pool = CommandPool::new();
-    pool.start_executor(Duration::from_millis(50));
+    pool.start_executor();
 
     // 第一次关闭
     let result1 = pool.shutdown_with_timeout(Duration::from_secs(1));
@@ -279,7 +279,7 @@ fn test_shutdown_idempotent() {
 #[test]
 fn test_shutdown_with_fast_tasks() {
     let pool = CommandPool::new();
-    pool.start_executor(Duration::from_millis(50));
+    pool.start_executor();
 
     // 提交多个快速任务
     for _ in 0..10 {

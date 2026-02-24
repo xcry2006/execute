@@ -31,7 +31,7 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
     let pool = CommandPool::with_config(config);
 
     // 启动执行器
-    pool.start_executor(Duration::from_millis(100));
+    pool.start_executor();
     println!("✓ 命令池已启动 (4 个工作线程)\n");
 
     // 3. 演示各种功能

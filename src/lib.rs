@@ -8,6 +8,7 @@ mod logging;
 mod metrics;
 mod pipeline;
 mod pool;
+pub mod prelude;
 mod process_pool;
 mod semaphore;
 mod task_handle;

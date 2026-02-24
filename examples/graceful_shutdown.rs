@@ -14,7 +14,7 @@ fn main() {
     pool.set_shutdown_config(ShutdownConfig::new(Duration::from_secs(60)));
 
     // 启动执行器
-    pool.start_executor(Duration::from_millis(100));
+    pool.start_executor();
     println!("命令池已启动\n");
 
     // 提交一些任务
