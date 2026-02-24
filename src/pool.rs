@@ -31,7 +31,7 @@ pub struct TaskItem {
 pub struct CommandPool {
     /// 任务队列和条件变量
     ///
-    /// - Mutex<VecDeque<TaskItem>>: 存储待执行的任务
+    /// - `Mutex<VecDeque<TaskItem>>`: 存储待执行的任务
     /// - Condvar: 用于队列满时的阻塞等待和通知
     tasks: Arc<(Mutex<VecDeque<TaskItem>>, Condvar)>,
 

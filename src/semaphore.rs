@@ -7,7 +7,7 @@ use std::sync::{Arc, Condvar, Mutex};
 pub struct Semaphore {
     /// 内部状态：当前可用许可证数和条件变量
     ///
-    /// - Mutex<usize>: 当前可用的许可证数量
+    /// - `Mutex<usize>`: 当前可用的许可证数量
     /// - Condvar: 用于阻塞等待许可证的条件变量
     inner: Arc<(Mutex<usize>, Condvar)>,
 }
