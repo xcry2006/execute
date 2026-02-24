@@ -15,6 +15,13 @@ mod task_handle;
 mod task_status;
 mod zombie_reaper;
 
+// Re-export 标准库类型（在公共 API 中使用）
+pub use std::sync::mpsc::Sender;
+pub use std::time::Duration;
+
+// Re-export 外部库类型（在公共 API 中使用）
+pub use thiserror::Error;
+
 pub use backend::{ExecutionBackend, ExecutionConfig, ExecutionMode};
 pub use config::{
     CommandConfig, EnvConfig, PoolConfig, PoolConfigBuilder, ResourceLimits, RetryPolicy,
@@ -32,7 +39,7 @@ pub use hooks::{ExecutionContext, ExecutionHook, HookTaskResult};
 pub use logging::{LogConfig, LogFormat, LogLevel, LogTarget};
 pub use metrics::{Metrics, MetricsSnapshot};
 pub use pipeline::{Pipeline, PipelineExecutor, PipelineStage};
-pub use pool::CommandPool;
+pub use pool::{CommandPool, TaskItem};
 pub use pool_seg::CommandPoolSeg;
 pub use process_pool::ProcessPool;
 pub use semaphore::{Semaphore, SemaphoreGuard};
