@@ -8,7 +8,7 @@ fn bench_push_pop_single_thread(c: &mut Criterion) {
         b.iter(|| {
             let pool = CommandPool::new();
             for i in 0..1000 {
-                pool.push_task(CommandConfig::new("echo", vec![i.to_string()]));
+                let _ = pool.push_task(CommandConfig::new("echo", vec![i.to_string()]));
             }
             while pool.pop_task().is_some() {}
         })
@@ -24,7 +24,8 @@ fn bench_push_multi_thread(c: &mut Criterion) {
                 let pool_clone = pool.clone();
                 handles.push(thread::spawn(move || {
                     for i in 0..1000 {
-                        pool_clone.push_task(CommandConfig::new("echo", vec![i.to_string()]));
+                        let _ =
+                            pool_clone.push_task(CommandConfig::new("echo", vec![i.to_string()]));
                     }
                 }));
             }
@@ -53,7 +54,7 @@ fn bench_push_pop_single_thread_seg(c: &mut Criterion) {
         b.iter(|| {
             let pool = CommandPoolSeg::new();
             for i in 0..1000 {
-                pool.push_task(CommandConfig::new("echo", vec![i.to_string()]));
+                let _ = pool.push_task(CommandConfig::new("echo", vec![i.to_string()]));
             }
             while pool.pop_task().is_some() {}
         })
@@ -69,7 +70,8 @@ fn bench_push_multi_thread_seg(c: &mut Criterion) {
                 let pool_clone = pool.clone();
                 handles.push(thread::spawn(move || {
                     for i in 0..1000 {
-                        pool_clone.push_task(CommandConfig::new("echo", vec![i.to_string()]));
+                        let _ =
+                            pool_clone.push_task(CommandConfig::new("echo", vec![i.to_string()]));
                     }
                 }));
             }

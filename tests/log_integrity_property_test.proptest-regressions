@@ -1,0 +1,7 @@
+# Seeds for failure cases proptest has generated in the past. It is
+# automatically read and these particular cases re-run before any
+# novel cases are generated.
+#
+# It is recommended to check this file in to source control so that
+# everyone who runs the test benefits from these saved cases.
+cc a7e6ecd91370fc87ff0cc7dbd0bb9322e7aa1dd61345f6e567ff854f02452cd0 # shrinks to config = CommandConfig { program: "echo", args: ["test"], working_dir: None, timeout: Some(10s), resource_limits: None, retry_policy: None, timeout_config: None, env_config: None }

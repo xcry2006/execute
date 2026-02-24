@@ -1,0 +1,8 @@
+# Seeds for failure cases proptest has generated in the past. It is
+# automatically read and these particular cases re-run before any
+# novel cases are generated.
+#
+# It is recommended to check this file in to source control so that
+# everyone who runs the test benefits from these saved cases.
+cc 9119246427c62151f9c82d77535b67d2db4179f1f762c3f51cee56049eee3a1c # shrinks to (cmd, args) = ("false", []), task_id = 1, working_dir = None
+cc 00efa47e69041ec516abd1a3476fdfe7dcba8a32f06816541786937c6643e702 # shrinks to (cmd, args, timeout) = ("sleep", ["10"], 50ms), task_id = 2217

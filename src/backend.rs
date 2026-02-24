@@ -62,6 +62,11 @@ pub struct ExecutionConfig {
     pub workers: usize,
     /// 并发限制（可选）
     pub concurrency_limit: Option<usize>,
+    /// 僵尸进程清理间隔（可选）
+    ///
+    /// 如果设置，命令池会启动后台线程定期清理僵尸进程。
+    /// 如果为 None，则不启动僵尸进程清理器。
+    pub zombie_reaper_interval: Option<std::time::Duration>,
 }
 
 impl ExecutionConfig {
@@ -75,6 +80,7 @@ impl ExecutionConfig {
                 .map(|n| n.get())
                 .unwrap_or(4),
             concurrency_limit: None,
+            zombie_reaper_interval: None,
         }
     }
 
@@ -123,6 +129,24 @@ impl ExecutionConfig {
     /// ```
     pub fn with_workers(mut self, workers: usize) -> Self {
         self.workers = workers;
+        self
+    }
+
+    /// 设置僵尸进程清理间隔
+    ///
+    /// # 参数
+    /// - `interval`: 清理僵尸进程的时间间隔
+    ///
+    /// # 示例
+    /// ```ignore
+    /// use execute::ExecutionConfig;
+    /// use std::time::Duration;
+    ///
+    /// let config = ExecutionConfig::new()
+    ///     .with_zombie_reaper_interval(Duration::from_secs(5));
+    /// ```
+    pub fn with_zombie_reaper_interval(mut self, interval: std::time::Duration) -> Self {
+        self.zombie_reaper_interval = Some(interval);
         self
     }
 }

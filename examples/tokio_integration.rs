@@ -44,11 +44,11 @@ fn main() -> Result<(), ExecuteError> {
     let executor = Arc::new(TokioWithTimeoutExecutor::new()?);
 
     // 添加几个示例任务
-    pool.push_task(CommandConfig::new(
+    let _ = pool.push_task(CommandConfig::new(
         "echo",
         vec!["hello from tokio".to_string()],
     ));
-    pool.push_task(
+    let _ = pool.push_task(
         CommandConfig::new("sleep", vec!["1".to_string()]).with_timeout(Duration::from_millis(200)),
     );
 

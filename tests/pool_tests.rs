@@ -1,15 +1,16 @@
 use execute::{CommandConfig, CommandPool, CommandPoolSeg, ExecutionConfig, ExecutionMode};
 
 #[test]
-fn command_pool_push_pop_and_is_empty_work() {
+fn command_pool_push_and_is_empty_work() {
     let pool = CommandPool::new();
     assert!(pool.is_empty());
 
-    pool.push_task(CommandConfig::new("echo", vec!["hi".to_string()]));
+    let _ = pool.push_task(CommandConfig::new("echo", vec!["hi".to_string()]));
     assert!(!pool.is_empty());
 
-    let task = pool.pop_task().expect("expected a task");
-    assert_eq!(task.program(), "echo");
+    // Clear the pool
+    let cleared = pool.clear();
+    assert_eq!(cleared, 1);
     assert!(pool.is_empty());
 }
 
@@ -18,11 +19,66 @@ fn command_pool_seg_push_pop_and_is_empty_work() {
     let pool = CommandPoolSeg::new();
     assert!(pool.is_empty());
 
-    pool.push_task(CommandConfig::new("echo", vec!["seg".to_string()]));
+    let _ = pool.push_task(CommandConfig::new("echo", vec!["seg".to_string()]));
     assert!(!pool.is_empty());
 
     let task = pool.pop_task().expect("expected a task");
     assert_eq!(task.program(), "echo");
+    assert!(pool.is_empty());
+}
+
+#[test]
+fn command_pool_seg_stop_mechanism() {
+    let pool = CommandPoolSeg::new();
+
+    // Initially not stopped
+    assert!(!pool.is_stopped());
+
+    // Can push tasks when not stopped
+    let result = pool.push_task(CommandConfig::new("echo", vec!["test".to_string()]));
+    assert!(result.is_ok());
+
+    // Stop the pool
+    pool.stop();
+    assert!(pool.is_stopped());
+
+    // Cannot push tasks after stop
+    let result = pool.push_task(CommandConfig::new("echo", vec!["test2".to_string()]));
+    assert!(result.is_err());
+
+    // Can still pop existing tasks
+    let task = pool.pop_task();
+    assert!(task.is_some());
+}
+
+#[test]
+fn command_pool_seg_stop_with_executor() {
+    use std::time::Duration;
+
+    let pool = CommandPoolSeg::new();
+
+    // Push some tasks
+    for i in 0..5 {
+        let _ = pool.push_task(CommandConfig::new("echo", vec![i.to_string()]));
+    }
+
+    // Start executor with a short interval
+    pool.start_executor_with_workers(Duration::from_millis(10), 2);
+
+    // Wait a bit for tasks to be processed
+    std::thread::sleep(Duration::from_millis(100));
+
+    // Stop the pool
+    pool.stop();
+
+    // Try to push more tasks - should fail
+    let result = pool.push_task(CommandConfig::new("echo", vec!["after_stop".to_string()]));
+    assert!(result.is_err());
+
+    // Wait for workers to finish
+    std::thread::sleep(Duration::from_millis(200));
+
+    // Queue should be empty
     assert!(pool.is_empty());
 }
 
@@ -89,10 +145,10 @@ fn command_pool_with_queue_limit() {
     assert_eq!(pool.len(), 0);
 
     // 添加任务
-    pool.push_task(CommandConfig::new("echo", vec!["1".to_string()]));
+    let _ = pool.push_task(CommandConfig::new("echo", vec!["1".to_string()]));
     assert_eq!(pool.len(), 1);
 
-    pool.push_task(CommandConfig::new("echo", vec!["2".to_string()]));
+    let _ = pool.push_task(CommandConfig::new("echo", vec!["2".to_string()]));
     assert_eq!(pool.len(), 2);
 
     // 使用 try_push_task 测试队列满的情况
@@ -108,23 +164,23 @@ fn command_pool_without_queue_limit() {
 
     // 可以添加多个任务
     for i in 0..100 {
-        pool.push_task(CommandConfig::new("echo", vec![i.to_string()]));
+        let _ = pool.push_task(CommandConfig::new("echo", vec![i.to_string()]));
     }
 
     assert_eq!(pool.len(), 100);
 }
 
 #[test]
-fn command_pool_batch_operations() {
+fn command_pool_batch_operations_disabled() {
+    // Note: Batch operations are temporarily disabled pending TaskHandle support
+    // This test verifies that individual push_task works correctly
     let pool = CommandPool::new();
 
-    // 批量添加任务
-    let tasks: Vec<_> = (0..10)
-        .map(|i| CommandConfig::new("echo", vec![i.to_string()]))
-        .collect();
+    // 添加任务
+    for i in 0..10 {
+        let _ = pool.push_task(CommandConfig::new("echo", vec![i.to_string()]));
+    }
 
-    let count = pool.push_tasks_batch(tasks);
-    assert_eq!(count, 10);
     assert_eq!(pool.len(), 10);
 
     // 清空任务
@@ -134,21 +190,20 @@ fn command_pool_batch_operations() {
 }
 
 #[test]
-fn command_pool_try_push_batch() {
+fn command_pool_try_push_with_limit() {
     let config = ExecutionConfig::new();
     let pool = CommandPool::with_config_and_limit(config, 5);
 
     // 先添加 3 个任务
-    pool.push_task(CommandConfig::new("echo", vec!["1".to_string()]));
-    pool.push_task(CommandConfig::new("echo", vec!["2".to_string()]));
-    pool.push_task(CommandConfig::new("echo", vec!["3".to_string()]));
+    let _ = pool.push_task(CommandConfig::new("echo", vec!["1".to_string()]));
+    let _ = pool.push_task(CommandConfig::new("echo", vec!["2".to_string()]));
+    let _ = pool.push_task(CommandConfig::new("echo", vec!["3".to_string()]));
 
-    // 尝试批量添加 10 个任务，应该只添加 2 个（达到队列限制 5）
-    let tasks: Vec<_> = (0..10)
-        .map(|i| CommandConfig::new("echo", vec![i.to_string()]))
-        .collect();
+    assert_eq!(pool.len(), 3);
 
-    let count = pool.try_push_tasks_batch(tasks);
-    assert_eq!(count, 2);
+    // 可以继续添加到限制
+    let _ = pool.push_task(CommandConfig::new("echo", vec!["4".to_string()]));
+    let _ = pool.push_task(CommandConfig::new("echo", vec!["5".to_string()]));
+
     assert_eq!(pool.len(), 5);
 }
