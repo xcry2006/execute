@@ -21,3 +21,25 @@ crossbeam = "0.8"
 criterion = "0.5"
 proptest = "1.0"
 tokio = { version = "1.40", features = ["process", "time", "rt-multi-thread"] }
+
+# 发布版本体积优化配置
+[profile.release]
+# 优化级别：z 表示优化体积（比 s 更激进）
+opt-level = "z"
+# 启用链接时优化，减少重复代码
+lto = true
+# 代码生成单元数，设为1允许更多跨模块优化
+codegen-units = 1
+# 去除 panic 时的栈展开信息，减小体积
+panic = "abort"
+# 去除调试符号（如需要调试可设为 true 或仅用 strip）
+strip = true
+
+# 发布构建的替代配置（如果需要更好的运行时性能）
+[profile.release-size]
+inherits = "release"
+opt-level = "z"
+lto = true
+codegen-units = 1
+panic = "abort"
+strip = true
