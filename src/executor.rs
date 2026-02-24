@@ -207,19 +207,17 @@ pub fn apply_env_config(cmd: &mut Command, env_config: &crate::config::EnvConfig
     }
 }
 
-/// 命令执行器 trait | Command executor trait
+/// 命令执行器 trait
 ///
 /// 抽象命令执行的接口，支持不同的运行时实现（std::process、tokio、async-std 等）。
-/// Defines the interface for command execution, supporting different runtime implementations.
 pub trait CommandExecutor: Send + Sync {
-    /// 执行命令并返回输出 | Execute a command and return output
+    /// 执行命令并返回输出
     fn execute(&self, config: &CommandConfig) -> Result<Output, ExecuteError>;
 }
 
-/// 标准库命令执行器 | Standard library command executor
+/// 标准库命令执行器
 ///
 /// 使用 std::process::Command 实现，基于线程同步的同步执行。
-/// Implementation using std::process::Command with synchronous thread-based execution.
 pub struct StdCommandExecutor;
 
 impl CommandExecutor for StdCommandExecutor {
@@ -228,12 +226,12 @@ impl CommandExecutor for StdCommandExecutor {
     }
 }
 
-/// 执行单个命令配置 | Execute a single command configuration
+/// 执行单个命令配置
 ///
 /// 内部函数，用于启动子进程并处理超时。使用 wait-timeout crate 在同一线程中进行超时等待，
 /// 避免为每个任务生成额外的等待线程，提高性能和降低系统开销。
 pub(crate) fn execute_command(config: &CommandConfig) -> Result<Output, ExecuteError> {
-    // 启动子进程，重定向 stdout 和 stderr | Spawn child with piped stdout/stderr
+    // 启动子进程，重定向 stdout 和 stderr
     let mut cmd = Command::new(&config.program);
     cmd.args(&config.args);
     cmd.stdout(Stdio::piped()).stderr(Stdio::piped());
