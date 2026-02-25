@@ -2,13 +2,19 @@
 #![cfg_attr(docsrs, feature(doc_cfg))]
 
 mod backend;
+mod batch_executor;
 mod config;
+mod env_optimizer;
 mod error;
 mod executor;
+mod warm_pool;
 #[cfg(feature = "health")]
 #[cfg_attr(docsrs, doc(cfg(feature = "health")))]
 mod health;
 mod hooks;
+#[cfg(feature = "iouring")]
+#[cfg_attr(docsrs, doc(cfg(feature = "iouring")))]
+mod iouring_executor;
 #[cfg(feature = "logging")]
 #[cfg_attr(docsrs, doc(cfg(feature = "logging")))]
 mod logging;
@@ -34,6 +40,12 @@ pub use std::time::Duration;
 pub use thiserror::Error;
 
 pub use backend::{ExecutionBackend, ExecutionConfig, ExecutionMode};
+pub use batch_executor::{
+    execute_batch_detailed, execute_parallel_batch, execute_sequential_batch, BatchConfig,
+    BatchOutput, IndividualOutput,
+};
+pub use env_optimizer::{apply_env_config_optimized, EnvCache, EnvOptimizer};
+pub use warm_pool::{WarmExecutor, WarmProcessPool};
 pub use config::{
     CommandConfig, EnvConfig, PoolConfig, PoolConfigBuilder, ResourceLimits, RetryPolicy,
     RetryStrategy, ShutdownConfig, TimeoutConfig,
@@ -55,6 +67,9 @@ pub use logging::{LogConfig, LogFormat, LogLevel, LogTarget};
 #[cfg(feature = "metrics")]
 #[cfg_attr(docsrs, doc(cfg(feature = "metrics")))]
 pub use metrics::{Metrics, MetricsSnapshot};
+#[cfg(feature = "iouring")]
+#[cfg_attr(docsrs, doc(cfg(feature = "iouring")))]
+pub use iouring_executor::{execute_batch_iouring, IoUringExecutor};
 #[cfg(feature = "pipeline")]
 #[cfg_attr(docsrs, doc(cfg(feature = "pipeline")))]
 pub use pipeline::{Pipeline, PipelineExecutor, PipelineStage};

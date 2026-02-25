@@ -26,7 +26,7 @@ use crate::error::ConfigError;
 ///     }
 /// );
 /// ```
-#[derive(Debug, Clone)]
+#[derive(Debug, Clone, PartialEq)]
 pub struct RetryPolicy {
     /// 最大重试次数（不包括初始尝试）
     ///
@@ -100,7 +100,7 @@ impl RetryPolicy {
 /// 重试延迟策略
 ///
 /// 定义如何计算每次重试之间的延迟时间。
-#[derive(Debug, Clone)]
+#[derive(Debug, Clone, PartialEq)]
 pub enum RetryStrategy {
     /// 固定间隔重试
     ///
@@ -194,7 +194,7 @@ impl RetryStrategy {
 ///     .with_max_output_size(1024 * 1024)  // 1 MB
 ///     .with_max_memory(100 * 1024 * 1024); // 100 MB
 /// ```
-#[derive(Debug, Clone)]
+#[derive(Debug, Clone, PartialEq)]
 pub struct ResourceLimits {
     /// 最大输出大小（字节）
     ///
@@ -286,6 +286,7 @@ impl Default for ResourceLimits {
 ///     .with_timeout(Duration::from_secs(2));
 /// ```
 #[derive(Debug, Clone)]
+#[derive(PartialEq)]
 pub struct CommandConfig {
     pub(crate) program: String,
     pub(crate) args: Vec<String>,
@@ -496,7 +497,7 @@ impl CommandConfig {
 ///
 /// 包含命令池的所有配置参数，包括线程数、队列容量、超时等。
 /// 使用 PoolConfigBuilder 创建并验证配置。
-#[derive(Debug, Clone)]
+#[derive(Debug, Clone, PartialEq)]
 pub struct PoolConfig {
     /// 工作线程数
     pub thread_count: usize,
@@ -824,6 +825,7 @@ pub enum ShutdownState {
 ///     .with_execution_timeout(Duration::from_secs(30));
 /// ```
 #[derive(Debug, Clone, Default)]
+#[derive(PartialEq)]
 pub struct TimeoutConfig {
     /// 命令启动超时
     ///
@@ -930,6 +932,7 @@ impl TimeoutConfig {
 ///     .set("PATH", "/usr/bin");
 /// ```
 #[derive(Debug, Clone)]
+#[derive(PartialEq)]
 pub struct EnvConfig {
     /// 环境变量映射
     ///
@@ -1045,6 +1048,27 @@ impl EnvConfig {
     /// 返回是否继承父进程的环境变量。
     pub fn inherit_parent(&self) -> bool {
         self.inherit_parent
+    }
+
+    /// 应用到 Command
+    ///
+    /// 将环境变量配置应用到 std::process::Command。
+    pub fn apply_to_command(&self, cmd: &mut std::process::Command) {
+        if !self.inherit_parent {
+            cmd.env_clear();
+        }
+
+        // 设置环境变量
+        for (key, value) in &self.vars {
+            match value {
+                Some(v) => {
+                    cmd.env(key, v);
+                }
+                None => {
+                    cmd.env_remove(key);
+                }
+            }
+        }
     }
 }
 

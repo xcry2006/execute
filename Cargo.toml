@@ -27,6 +27,10 @@ tracing-subscriber = { version = "0.3", features = ["json", "env-filter", "fmt"]
 # 可选依赖：指标
 hdrhistogram = { version = "7.5", optional = true }
 
+# io_uring 支持（Linux 5.1+）
+io-uring = { version = "0.6", optional = true }
+slab = { version = "0.4", optional = true }
+
 [features]
 default = ["logging", "metrics", "health", "pipeline"]
 
@@ -53,10 +57,14 @@ minimal = []
 # 全功能
 full = ["logging", "metrics", "health", "pipeline"]
 
+# io_uring 异步 I/O 优化（Linux 5.1+）
+iouring = ["io-uring", "slab"]
+
 [dev-dependencies]
 criterion = "0.5"
 proptest = "1.0"
 tokio = { version = "1.40", features = ["process", "time", "rt-multi-thread"] }
+num_cpus = "1.16"
 
 # 发布版本体积优化配置
 [profile.release]

@@ -226,24 +226,8 @@ fn monitor_memory(pid: u32, max_memory: usize, check_interval: std::time::Durati
 /// apply_env_config(&mut cmd, &env);
 /// ```
 pub fn apply_env_config(cmd: &mut Command, env_config: &crate::config::EnvConfig) {
-    // 如果不继承父进程环境变量，清除所有环境变量
-    if !env_config.inherit_parent() {
-        cmd.env_clear();
-    }
-
-    // 应用配置的环境变量
-    for (key, value) in env_config.vars() {
-        match value {
-            Some(v) => {
-                // 设置环境变量
-                cmd.env(key, v);
-            }
-            None => {
-                // 清除环境变量
-                cmd.env_remove(key);
-            }
-        }
-    }
+    // 使用优化的批量应用
+    crate::env_optimizer::apply_env_config_optimized(cmd, env_config);
 }
 
 /// 命令执行器 trait
