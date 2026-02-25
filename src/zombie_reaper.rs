@@ -61,6 +61,7 @@ impl ZombieReaper {
             reaper_loop(check_interval, shutdown_clone);
         });
 
+        #[cfg(feature = "logging")]
         tracing::info!(
             interval_secs = check_interval.as_secs(),
             "ZombieReaper started"
@@ -82,6 +83,7 @@ impl ZombieReaper {
 
         if let Some(handle) = self.handle.take() {
             let _ = handle.join();
+            #[cfg(feature = "logging")]
             tracing::info!("ZombieReaper stopped");
         }
     }
@@ -105,6 +107,7 @@ fn reaper_loop(interval: Duration, shutdown: Arc<AtomicBool>) {
     while !shutdown.load(Ordering::Relaxed) {
         let cleaned = reap_zombies();
         if cleaned > 0 {
+            #[cfg(feature = "logging")]
             tracing::info!(count = cleaned, "Reaped zombie processes");
         }
 
@@ -114,6 +117,7 @@ fn reaper_loop(interval: Duration, shutdown: Arc<AtomicBool>) {
     // 退出前最后清理一次
     let cleaned = reap_zombies();
     if cleaned > 0 {
+        #[cfg(feature = "logging")]
         tracing::info!(count = cleaned, "Final zombie process cleanup");
     }
 }
@@ -135,6 +139,7 @@ fn reap_zombies() -> usize {
     loop {
         match waitpid(Pid::from_raw(-1), Some(WaitPidFlag::WNOHANG)) {
             Ok(WaitStatus::Exited(pid, status)) => {
+                #[cfg(feature = "logging")]
                 tracing::debug!(
                     pid = pid.as_raw(),
                     exit_status = status,
@@ -143,6 +148,7 @@ fn reap_zombies() -> usize {
                 count += 1;
             }
             Ok(WaitStatus::Signaled(pid, signal, _)) => {
+                #[cfg(feature = "logging")]
                 tracing::debug!(
                     pid = pid.as_raw(),
                     signal = signal as i32,
@@ -159,6 +165,7 @@ fn reap_zombies() -> usize {
                 break;
             }
             Err(e) => {
+                #[cfg(feature = "logging")]
                 tracing::warn!(error = %e, "Error while reaping zombies");
                 break;
             }

@@ -1,3 +1,5 @@
+#![cfg(feature = "health")]
+
 use std::time::{Duration, SystemTime};
 
 /// 健康状态

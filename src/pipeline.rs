@@ -1,3 +1,5 @@
+#![cfg(feature = "pipeline")]
+
 use std::process::Output;
 
 use crate::config::CommandConfig;

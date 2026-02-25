@@ -1,3 +1,5 @@
+#![cfg_attr(not(feature = "logging"), allow(dead_code))]
+
 use std::io::Read;
 use std::process::{Command, Output, Stdio};
 use std::sync::Arc;
@@ -6,6 +8,43 @@ use std::time::Instant;
 use crate::error::{CommandError, ErrorContext};
 use crate::hooks::{ExecutionContext, ExecutionHook, HookTaskResult};
 use crate::{CommandConfig, ExecuteError};
+
+/// 日志宏：在 logging feature 启用时使用 tracing，否则不记录
+#[cfg(feature = "logging")]
+macro_rules! log_warn {
+    ($($arg:tt)*) => { ::tracing::warn!($($arg)*) };
+}
+#[cfg(not(feature = "logging"))]
+macro_rules! log_warn {
+    ($($arg:tt)*) => {};
+}
+
+#[cfg(feature = "logging")]
+macro_rules! log_info {
+    ($($arg:tt)*) => { ::tracing::info!($($arg)*) };
+}
+#[cfg(not(feature = "logging"))]
+macro_rules! log_info {
+    ($($arg:tt)*) => {};
+}
+
+#[cfg(feature = "logging")]
+macro_rules! log_debug {
+    ($($arg:tt)*) => { ::tracing::debug!($($arg)*) };
+}
+#[cfg(not(feature = "logging"))]
+macro_rules! log_debug {
+    ($($arg:tt)*) => {};
+}
+
+#[cfg(feature = "logging")]
+macro_rules! log_error {
+    ($($arg:tt)*) => { ::tracing::error!($($arg)*) };
+}
+#[cfg(not(feature = "logging"))]
+macro_rules! log_error {
+    ($($arg:tt)*) => {};
+}
 
 /// 限制读取大小的 Reader 包装器
 ///
@@ -38,7 +77,7 @@ impl<R: Read> Read for LimitedReader<R> {
         if let Some(limit) = self.limit {
             if self.read >= limit {
                 // 已达到限制，记录警告并返回 EOF
-                tracing::warn!(
+                log_warn!(
                     limit = limit,
                     "Output size limit reached, truncating output"
                 );
@@ -135,7 +174,7 @@ fn monitor_memory(pid: u32, max_memory: usize, check_interval: std::time::Durati
         if let Some(memory) = get_process_memory(pid)
             && memory > max_memory
         {
-            tracing::warn!(
+            log_warn!(
                 pid = pid,
                 memory = memory,
                 max_memory = max_memory,
@@ -559,7 +598,7 @@ pub fn execute_with_timeouts(config: &CommandConfig, task_id: u64) -> Result<Out
         let spawn_duration = spawn_start.elapsed();
         if spawn_duration > spawn_timeout {
             // 启动时间超过限制，记录警告并返回超时错误
-            tracing::warn!(
+            log_warn!(
                 task_id = task_id,
                 spawn_duration_ms = spawn_duration.as_millis(),
                 spawn_timeout_ms = spawn_timeout.as_millis(),
@@ -642,7 +681,7 @@ pub fn execute_with_timeouts(config: &CommandConfig, task_id: u64) -> Result<Out
             }
             None => {
                 // 执行超时：尝试杀死子进程
-                tracing::warn!(
+                log_warn!(
                     task_id = task_id,
                     execution_timeout_ms = execution_timeout.as_millis(),
                     actual_duration_ms = start_time.elapsed().as_millis(),
@@ -741,13 +780,13 @@ pub fn execute_with_retry(config: &CommandConfig, task_id: u64) -> Result<Output
     while attempt < max_attempts {
         // 记录尝试日志
         if attempt == 0 {
-            tracing::debug!(
+            log_debug!(
                 task_id = task_id,
                 command = format!("{} {}", config.program(), config.args().join(" ")),
                 "Executing command (initial attempt)"
             );
         } else {
-            tracing::info!(
+            log_info!(
                 task_id = task_id,
                 attempt = attempt,
                 max_attempts = retry_policy.max_attempts,
@@ -769,7 +808,7 @@ pub fn execute_with_retry(config: &CommandConfig, task_id: u64) -> Result<Output
             Ok(output) => {
                 // 成功，记录日志并返回
                 if attempt > 0 {
-                    tracing::info!(
+                    log_info!(
                         task_id = task_id,
                         attempt = attempt,
                         "Command succeeded after retry"
@@ -781,7 +820,7 @@ pub fn execute_with_retry(config: &CommandConfig, task_id: u64) -> Result<Output
                 // 失败，记录错误
                 attempt += 1;
 
-                tracing::warn!(
+                log_warn!(
                     task_id = task_id,
                     attempt = attempt,
                     max_attempts = max_attempts,
@@ -794,7 +833,7 @@ pub fn execute_with_retry(config: &CommandConfig, task_id: u64) -> Result<Output
                 // 如果还有重试机会，等待后重试
                 if attempt < max_attempts {
                     let delay = retry_policy.delay_for_attempt(attempt);
-                    tracing::debug!(
+                    log_debug!(
                         task_id = task_id,
                         attempt = attempt,
                         delay_ms = delay.as_millis(),
@@ -807,7 +846,7 @@ pub fn execute_with_retry(config: &CommandConfig, task_id: u64) -> Result<Output
     }
 
     // 所有尝试都失败了，返回最后一次的错误
-    tracing::error!(
+    log_error!(
         task_id = task_id,
         attempts = attempt,
         "Command failed after all retry attempts"
@@ -870,7 +909,7 @@ pub fn execute_task_with_hooks(
             hook_clone.before_execute(&ctx_clone);
         }))
         .map_err(|e| {
-            tracing::warn!(
+            log_warn!(
                 task_id = task_id,
                 error = ?e,
                 "Hook before_execute panicked, continuing with task execution"
@@ -915,7 +954,7 @@ pub fn execute_task_with_hooks(
             hook_clone.after_execute(&ctx_clone, &result_clone);
         }))
         .map_err(|e| {
-            tracing::warn!(
+            log_warn!(
                 task_id = task_id,
                 error = ?e,
                 "Hook after_execute panicked, ignoring error"
@@ -960,10 +999,13 @@ mod tests {
     fn test_execute_task_with_hooks_calls_before_and_after() {
         use std::sync::{Arc, Mutex};
 
+        // 类型别名简化复杂类型
+        type AfterCallRecord = (u64, Option<i32>);
+
         // 创建测试钩子
         struct TestHook {
             before_calls: Arc<Mutex<Vec<u64>>>,
-            after_calls: Arc<Mutex<Vec<(u64, Option<i32>)>>>,
+            after_calls: Arc<Mutex<Vec<AfterCallRecord>>>,
         }
 
         impl ExecutionHook for TestHook {

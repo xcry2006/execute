@@ -269,13 +269,11 @@ proptest! {
         let result = execute_with_timeouts(&config, task_id);
 
         // 如果超时，验证是启动超时
-        if let Err(error) = result {
-            if matches!(error, CommandError::Timeout { .. }) {
-                verify_spawn_timeout(&error, task_id, &cmd, spawn_timeout);
-            }
-            // 注意：由于启动超时的实现限制，可能不会总是触发
-            // 如果没有超时，测试仍然通过
+        if let Err(error) = result && matches!(error, CommandError::Timeout { .. }) {
+            verify_spawn_timeout(&error, task_id, &cmd, spawn_timeout);
         }
+        // 注意：由于启动超时的实现限制，可能不会总是触发
+        // 如果没有超时，测试仍然通过
     }
 }
 
@@ -321,10 +319,8 @@ fn test_spawn_timeout_distinction() {
     let result = execute_with_timeouts(&config, task_id);
 
     // 如果触发了超时，验证是启动超时
-    if let Err(error) = result {
-        if matches!(error, CommandError::Timeout { .. }) {
-            verify_spawn_timeout(&error, task_id, "sleep", spawn_timeout);
-        }
+    if let Err(error) = result && matches!(error, CommandError::Timeout { .. }) {
+        verify_spawn_timeout(&error, task_id, "sleep", spawn_timeout);
     }
 }
 

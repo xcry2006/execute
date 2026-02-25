@@ -1,3 +1,5 @@
+#![cfg(feature = "logging")]
+
 use std::path::PathBuf;
 use tracing::Level;
 use tracing_subscriber::{EnvFilter, fmt, layer::SubscriberExt, util::SubscriberInitExt};

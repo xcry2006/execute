@@ -262,7 +262,7 @@ proptest! {
 #[test]
 fn test_log_level_hierarchy() {
     // 验证日志级别的层次关系
-    let levels = vec![
+    let levels = [
         LogLevel::Trace,
         LogLevel::Debug,
         LogLevel::Info,

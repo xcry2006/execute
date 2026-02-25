@@ -15,6 +15,7 @@ pub use crate::config::CommandConfig;
 pub use crate::config::{RetryPolicy, RetryStrategy, TimeoutConfig, EnvConfig, ResourceLimits};
 pub use crate::error::{ExecuteError, SubmitError, ShutdownError};
 pub use crate::task_handle::{TaskHandle, TaskState};
+#[cfg(feature = "metrics")]
 pub use crate::metrics::{Metrics, MetricsSnapshot};
 pub use crate::backend::{ExecutionConfig, ExecutionMode};
 

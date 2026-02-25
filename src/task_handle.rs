@@ -221,12 +221,14 @@ impl TaskHandle {
                 self.cancel_token.cancel();
                 *state = TaskState::Cancelled;
 
+                #[cfg(feature = "logging")]
                 tracing::info!(task_id = self.task_id, "Task cancelled while queued");
 
                 Ok(())
             }
             TaskState::Running { pid: Some(pid) } => {
                 // 任务正在执行，终止进程
+                #[cfg(feature = "logging")]
                 tracing::warn!(
                     task_id = self.task_id,
                     pid = pid,
@@ -247,6 +249,7 @@ impl TaskHandle {
                             // 检查进程是否还在运行
                             if kill(Pid::from_raw(pid as i32), Signal::SIGCONT).is_ok() {
                                 // 进程还在运行，使用 SIGKILL 强制终止
+                                #[cfg(feature = "logging")]
                                 tracing::warn!(
                                     task_id = self.task_id,
                                     pid = pid,
@@ -258,6 +261,7 @@ impl TaskHandle {
                         }
                         Err(e) => {
                             // SIGTERM 失败，尝试 SIGKILL
+                            #[cfg(feature = "logging")]
                             tracing::warn!(
                                 task_id = self.task_id,
                                 pid = pid,
@@ -274,6 +278,7 @@ impl TaskHandle {
                 {
                     // 在非 Unix 平台上，我们无法直接终止进程
                     // 这里只设置取消标志，让执行器处理
+                    #[cfg(feature = "logging")]
                     tracing::warn!(
                         task_id = self.task_id,
                         "Process termination not supported on this platform"
@@ -284,6 +289,7 @@ impl TaskHandle {
                 self.cancel_token.cancel();
                 *state = TaskState::Cancelled;
 
+                #[cfg(feature = "logging")]
                 tracing::info!(task_id = self.task_id, "Task cancelled while running");
 
                 Ok(())
@@ -294,6 +300,7 @@ impl TaskHandle {
                 self.cancel_token.cancel();
                 *state = TaskState::Cancelled;
 
+                #[cfg(feature = "logging")]
                 tracing::info!(task_id = self.task_id, "Task cancelled while starting");
 
                 Ok(())

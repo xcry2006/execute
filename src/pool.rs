@@ -2,14 +2,18 @@ use std::collections::VecDeque;
 use std::sync::atomic::{AtomicBool, AtomicU64, Ordering};
 use std::sync::{Arc, Condvar, Mutex};
 use std::thread::{self, JoinHandle};
-use std::time::{Duration, Instant, SystemTime};
+use std::time::{Duration, Instant};
+#[cfg(feature = "health")]
+use std::time::SystemTime;
 
 use crate::backend::{BackendFactory, ExecutionBackend, ExecutionConfig, ExecutionMode};
 use crate::config::{CommandConfig, ShutdownConfig};
 use crate::error::{ExecuteError, ShutdownError, SubmitError};
 use crate::executor::CommandExecutor;
+#[cfg(feature = "health")]
 use crate::health::{HealthCheck, HealthDetails, HealthStatus};
 use crate::hooks::ExecutionHook;
+#[cfg(feature = "metrics")]
 use crate::metrics::Metrics;
 use crate::task_handle::{TaskHandle, TaskResult, TaskState};
 use crate::zombie_reaper::ZombieReaper;
@@ -32,6 +36,7 @@ pub struct CommandPool {
     running: Arc<AtomicBool>,
     handles: Arc<Mutex<Vec<JoinHandle<()>>>>,
     max_size: Option<usize>,
+    #[cfg(feature = "metrics")]
     metrics: Metrics,
     task_id_counter: Arc<AtomicU64>,
     shutdown_flag: Arc<AtomicBool>,
@@ -51,6 +56,7 @@ impl CommandPool {
     pub fn with_config(config: ExecutionConfig) -> Self {
         let backend = BackendFactory::create(&config);
 
+        #[cfg(feature = "logging")]
         tracing::info!(
             mode = ?config.mode,
             workers = config.workers,
@@ -67,6 +73,7 @@ impl CommandPool {
             running: Arc::new(AtomicBool::new(false)),
             handles: Arc::new(Mutex::new(Vec::new())),
             max_size: None,
+            #[cfg(feature = "metrics")]
             metrics: Metrics::new(),
             task_id_counter: Arc::new(AtomicU64::new(1)),
             shutdown_flag: Arc::new(AtomicBool::new(false)),
@@ -80,6 +87,7 @@ impl CommandPool {
     pub fn with_config_and_limit(config: ExecutionConfig, max_size: usize) -> Self {
         let backend = BackendFactory::create(&config);
 
+        #[cfg(feature = "logging")]
         tracing::info!(
             mode = ?config.mode,
             workers = config.workers,
@@ -97,6 +105,7 @@ impl CommandPool {
             running: Arc::new(AtomicBool::new(false)),
             handles: Arc::new(Mutex::new(Vec::new())),
             max_size: Some(max_size),
+            #[cfg(feature = "metrics")]
             metrics: Metrics::new(),
             task_id_counter: Arc::new(AtomicU64::new(1)),
             shutdown_flag: Arc::new(AtomicBool::new(false)),
@@ -168,6 +177,7 @@ impl CommandPool {
 
         let task_id = self.task_id_counter.fetch_add(1, Ordering::SeqCst);
 
+        #[cfg(feature = "logging")]
         tracing::debug!(
             task_id = task_id,
             command = %task.program(),
@@ -175,6 +185,7 @@ impl CommandPool {
             "Task submitted"
         );
 
+        #[cfg(feature = "metrics")]
         self.metrics.record_task_submitted();
 
         // 创建 TaskHandle
@@ -309,6 +320,7 @@ impl CommandPool {
     /// 获取指标快照
     ///
     /// 返回当前的任务执行统计信息
+    #[cfg(feature = "metrics")]
     pub fn metrics(&self) -> crate::metrics::MetricsSnapshot {
         self.metrics.snapshot()
     }
@@ -391,6 +403,7 @@ impl CommandPool {
     /// pool.shutdown_with_timeout(Duration::from_secs(60)).unwrap();
     /// ```
     pub fn shutdown_with_timeout(&self, timeout: Duration) -> Result<(), ShutdownError> {
+        #[cfg(feature = "logging")]
         tracing::info!("Initiating graceful shutdown with timeout {:?}", timeout);
 
         // 1. 设置 shutdown flag，停止接受新任务
@@ -414,6 +427,7 @@ impl CommandPool {
             let remaining = timeout.saturating_sub(start.elapsed());
 
             if remaining.is_zero() {
+                #[cfg(feature = "logging")]
                 tracing::warn!(
                     "Shutdown timeout reached, {} workers may still be running",
                     total_workers - idx
@@ -425,9 +439,11 @@ impl CommandPool {
             // 注意：标准库的 JoinHandle 没有 join_timeout，我们需要使用其他方法
             match handle.join() {
                 Ok(_) => {
+                    #[cfg(feature = "logging")]
                     tracing::debug!("Worker {} joined successfully", idx);
                 }
                 Err(_) => {
+                    #[cfg(feature = "logging")]
                     tracing::error!("Worker {} panicked", idx);
                     return Err(ShutdownError::WorkerPanic);
                 }
@@ -435,6 +451,7 @@ impl CommandPool {
 
             // 检查是否超时
             if start.elapsed() >= timeout {
+                #[cfg(feature = "logging")]
                 tracing::warn!(
                     "Shutdown timeout reached after waiting for {} workers",
                     idx + 1
@@ -443,6 +460,7 @@ impl CommandPool {
             }
         }
 
+        #[cfg(feature = "logging")]
         tracing::info!("Graceful shutdown completed successfully");
         Ok(())
     }
@@ -528,12 +546,14 @@ impl CommandPool {
         let task_id = self.task_id_counter.load(Ordering::SeqCst);
         let start_time = Instant::now();
 
+        #[cfg(feature = "logging")]
         tracing::info!(
             task_id = task_id,
             command = %config.program(),
             "Task execution started"
         );
 
+        #[cfg(feature = "metrics")]
         self.metrics.record_task_started();
 
         // 如果配置了重试策略，使用 execute_with_retry，否则直接执行
@@ -552,21 +572,25 @@ impl CommandPool {
         match &result {
             Ok(output) => {
                 let exit_code = output.status.code().unwrap_or(-1);
+                #[cfg(feature = "logging")]
                 tracing::info!(
                     task_id = task_id,
                     exit_code = exit_code,
                     duration_ms = duration.as_millis(),
                     "Task completed successfully"
                 );
+                #[cfg(feature = "metrics")]
                 self.metrics.record_task_completed(duration);
             }
             Err(e) => {
+                #[cfg(feature = "logging")]
                 tracing::error!(
                     task_id = task_id,
                     error = %e,
                     duration_ms = duration.as_millis(),
                     "Task failed"
                 );
+                #[cfg(feature = "metrics")]
                 self.metrics.record_task_failed(duration);
             }
         }
@@ -585,16 +609,19 @@ impl CommandPool {
         let task_id = handle.id();
         let start_time = Instant::now();
 
+        #[cfg(feature = "logging")]
         tracing::info!(
             task_id = task_id,
             command = %config.program(),
             "Task execution started"
         );
 
+        #[cfg(feature = "metrics")]
         self.metrics.record_task_started();
 
         // 在执行前再次检查是否已取消
         if handle.is_cancelled() {
+            #[cfg(feature = "logging")]
             tracing::info!(task_id = task_id, "Task cancelled before execution");
             return Err(ExecuteError::Cancelled(task_id));
         }
@@ -614,7 +641,9 @@ impl CommandPool {
 
         // 检查是否在执行期间被取消
         if handle.is_cancelled() {
+            #[cfg(feature = "logging")]
             tracing::info!(task_id = task_id, "Task cancelled during execution");
+            #[cfg(feature = "metrics")]
             self.metrics.record_task_failed(duration);
             return Err(ExecuteError::Cancelled(task_id));
         }
@@ -622,21 +651,25 @@ impl CommandPool {
         match &result {
             Ok(output) => {
                 let exit_code = output.status.code().unwrap_or(-1);
+                #[cfg(feature = "logging")]
                 tracing::info!(
                     task_id = task_id,
                     exit_code = exit_code,
                     duration_ms = duration.as_millis(),
                     "Task completed successfully"
                 );
+                #[cfg(feature = "metrics")]
                 self.metrics.record_task_completed(duration);
             }
             Err(e) => {
+                #[cfg(feature = "logging")]
                 tracing::error!(
                     task_id = task_id,
                     error = %e,
                     duration_ms = duration.as_millis(),
                     "Task failed"
                 );
+                #[cfg(feature = "metrics")]
                 self.metrics.record_task_failed(duration);
             }
         }
@@ -674,6 +707,7 @@ impl CommandPool {
                         // 检查任务是否已被取消
                         if task_item.handle.is_cancelled() {
                             let task_id = task_item.handle.id();
+                            #[cfg(feature = "logging")]
                             tracing::info!(task_id = task_id, "Task cancelled before execution");
                             let _ = task_item
                                 .result_sender
@@ -699,6 +733,7 @@ impl CommandPool {
                         break;
                     }
                 }
+                #[cfg(feature = "logging")]
                 tracing::debug!("Custom executor worker exiting");
             });
             self.handles.lock().unwrap().push(handle);
@@ -754,10 +789,17 @@ impl CommandPool {
     /// # 返回
     ///
     /// 长时间运行的任务数量
+    #[cfg(feature = "metrics")]
     fn count_long_running_tasks(&self, _threshold: Duration) -> usize {
         // 简化实现：返回当前正在运行的任务数
         // 完整实现需要跟踪每个任务的开始时间
         self.metrics.tasks_running.load(Ordering::Relaxed)
+    }
+
+    /// 统计长时间运行的任务数（无 metrics 时的默认实现）
+    #[cfg(not(feature = "metrics"))]
+    fn count_long_running_tasks(&self, _threshold: Duration) -> usize {
+        0
     }
 
     /// 执行健康检查
@@ -793,6 +835,7 @@ impl CommandPool {
     ///     }
     /// }
     /// ```
+    #[cfg(feature = "health")]
     pub fn health_check(&self) -> HealthCheck {
         let mut issues = Vec::new();
 
@@ -830,7 +873,10 @@ impl CommandPool {
             HealthStatus::Unhealthy { issues }
         };
 
-        let snapshot = self.metrics.snapshot();
+        #[cfg(feature = "metrics")]
+        let avg_task_duration = self.metrics.snapshot().avg_execution_time;
+        #[cfg(not(feature = "metrics"))]
+        let avg_task_duration = Duration::ZERO;
 
         HealthCheck {
             status,
@@ -840,7 +886,7 @@ impl CommandPool {
                 workers_total,
                 queue_usage,
                 long_running_tasks: long_running,
-                avg_task_duration: snapshot.avg_execution_time,
+                avg_task_duration,
             },
         }
     }
@@ -855,6 +901,7 @@ impl Clone for CommandPool {
             running: Arc::clone(&self.running),
             handles: Arc::clone(&self.handles),
             max_size: self.max_size,
+            #[cfg(feature = "metrics")]
             metrics: self.metrics.clone(),
             task_id_counter: Arc::clone(&self.task_id_counter),
             shutdown_flag: Arc::clone(&self.shutdown_flag),

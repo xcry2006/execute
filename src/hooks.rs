@@ -122,13 +122,16 @@ mod tests {
     use super::*;
     use std::sync::{Arc, Mutex};
 
+    // 类型别名简化复杂类型
+    type CallVec = Arc<Mutex<Vec<u64>>>;
+
     struct TestHook {
-        before_calls: Arc<Mutex<Vec<u64>>>,
-        after_calls: Arc<Mutex<Vec<u64>>>,
+        before_calls: CallVec,
+        after_calls: CallVec,
     }
 
     impl TestHook {
-        fn new() -> (Self, Arc<Mutex<Vec<u64>>>, Arc<Mutex<Vec<u64>>>) {
+        fn new() -> (Self, CallVec, CallVec) {
             let before = Arc::new(Mutex::new(Vec::new()));
             let after = Arc::new(Mutex::new(Vec::new()));
             let hook = Self {

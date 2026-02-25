@@ -241,11 +241,7 @@ fn test_timeout_error_actual_duration_accuracy() {
     }) = result
     {
         // 实际执行时长应该与我们测量的时间接近
-        let diff = if actual_duration > elapsed {
-            actual_duration - elapsed
-        } else {
-            elapsed - actual_duration
-        };
+        let diff = actual_duration.abs_diff(elapsed);
 
         assert!(
             diff < Duration::from_millis(50),
@@ -261,7 +257,7 @@ fn test_timeout_error_actual_duration_accuracy() {
 #[cfg(unix)]
 fn test_timeout_error_with_different_timeouts() {
     // 测试不同的超时值都能正确报告
-    let timeouts = vec![
+    let timeouts = [
         Duration::from_millis(30),
         Duration::from_millis(50),
         Duration::from_millis(80),
