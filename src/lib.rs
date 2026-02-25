@@ -1,15 +1,22 @@
+// 在 docs.rs 上显示 feature 标志
+#![cfg_attr(docsrs, feature(doc_cfg))]
+
 mod backend;
 mod config;
 mod error;
 mod executor;
 #[cfg(feature = "health")]
+#[cfg_attr(docsrs, doc(cfg(feature = "health")))]
 mod health;
 mod hooks;
 #[cfg(feature = "logging")]
+#[cfg_attr(docsrs, doc(cfg(feature = "logging")))]
 mod logging;
 #[cfg(feature = "metrics")]
+#[cfg_attr(docsrs, doc(cfg(feature = "metrics")))]
 mod metrics;
 #[cfg(feature = "pipeline")]
+#[cfg_attr(docsrs, doc(cfg(feature = "pipeline")))]
 mod pipeline;
 mod pool;
 pub mod prelude;
@@ -39,13 +46,17 @@ pub use executor::{
     execute_task_with_hooks, execute_with_retry, execute_with_timeouts,
 };
 #[cfg(feature = "health")]
+#[cfg_attr(docsrs, doc(cfg(feature = "health")))]
 pub use health::{HealthCheck, HealthDetails, HealthStatus};
 pub use hooks::{ExecutionContext, ExecutionHook, HookTaskResult};
 #[cfg(feature = "logging")]
+#[cfg_attr(docsrs, doc(cfg(feature = "logging")))]
 pub use logging::{LogConfig, LogFormat, LogLevel, LogTarget};
 #[cfg(feature = "metrics")]
+#[cfg_attr(docsrs, doc(cfg(feature = "metrics")))]
 pub use metrics::{Metrics, MetricsSnapshot};
 #[cfg(feature = "pipeline")]
+#[cfg_attr(docsrs, doc(cfg(feature = "pipeline")))]
 pub use pipeline::{Pipeline, PipelineExecutor, PipelineStage};
 pub use pool::{CommandPool, TaskItem};
 pub use process_pool::ProcessPool;

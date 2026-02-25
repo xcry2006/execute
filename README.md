@@ -53,7 +53,7 @@
 execute = "0.1"
 ```
 
-如果需要使用特定的功能，可以启用相应的 feature（参见 [Cargo.toml](Cargo.toml) 中的 feature 定义）。
+如果需要使用特定的功能，可以启用相应的 feature（参见 [功能特性](#功能特性) 章节）。
 
 ### 基础使用
 
@@ -79,6 +79,117 @@ let pool = PoolConfigBuilder::new()
     .enable_health_check(true)
     .build()
     .unwrap();
+```
+
+## 功能特性
+
+本库使用 Cargo features 进行模块化组织，可以根据需求选择启用特定功能，以控制编译体积和依赖。
+
+### Feature 概述
+
+| Feature | 依赖 | 说明 | 默认启用 |
+|---------|------|------|----------|
+| `logging` | `tracing`, `tracing-subscriber` | 结构化日志支持（JSON/Pretty/Compact 格式） | ✅ |
+| `metrics` | `hdrhistogram` | 指标收集（成功率、执行时间百分位数等） | ✅ |
+| `health` | 无 | 健康检查接口 | ✅ |
+| `pipeline` | 无 | 命令管道（Pipeline）支持 | ✅ |
+| `minimal` | 无 | 仅核心功能（用于显式禁用默认 features） | ❌ |
+| `full` | 全部 | 启用所有功能 | ❌ |
+
+### 核心功能（无需 feature，始终可用）
+
+以下功能不依赖任何 feature，始终可用：
+
+- `CommandPool`, `CommandConfig`, `CommandExecutor` - 命令池和配置
+- `TaskHandle`, `TaskState`, `CancellationToken` - 任务管理
+- `ProcessPool`, `Semaphore`, `ZombieReaper` - 进程池和并发控制
+- 超时控制、重试策略、环境变量配置
+- 任务取消、优雅关闭
+
+### 可选功能（需要启用对应 feature）
+
+#### `logging` feature
+
+启用后可用：
+- `LogConfig`, `LogLevel`, `LogFormat`, `LogTarget` - 日志配置
+- `LogConfig::init()` - 初始化日志系统
+
+```rust
+use execute::{LogConfig, LogLevel, LogFormat, LogTarget};
+
+let config = LogConfig::new()
+    .with_level(LogLevel::Info)
+    .with_format(LogFormat::Pretty)
+    .with_target(LogTarget::Stdout);
+config.init().unwrap();
+```
+
+#### `metrics` feature
+
+启用后可用：
+- `Metrics`, `MetricsSnapshot` - 指标收集和快照
+- `CommandPool::metrics()` - 获取指标快照
+
+```rust
+use execute::{CommandPool, Metrics};
+
+let pool = CommandPool::new();
+// ... 执行任务 ...
+let snapshot = pool.metrics();
+println!("Success rate: {:.2}%", snapshot.success_rate * 100.0);
+```
+
+#### `health` feature
+
+启用后可用：
+- `HealthCheck`, `HealthStatus`, `HealthDetails` - 健康检查类型
+- `CommandPool::health_check()` - 执行健康检查
+
+```rust
+use execute::{CommandPool, HealthStatus};
+
+let pool = CommandPool::new();
+let health = pool.health_check();
+match health.status {
+    HealthStatus::Healthy => println!("System is healthy"),
+    HealthStatus::Degraded { issues } => println!("Degraded: {:?}", issues),
+    HealthStatus::Unhealthy { issues } => println!("Unhealthy: {:?}", issues),
+}
+```
+
+#### `pipeline` feature
+
+启用后可用：
+- `Pipeline`, `PipelineStage`, `PipelineExecutor` - 管道功能
+
+```rust
+use execute::{Pipeline, PipelineStage, PipelineExecutor, CommandConfig};
+
+let pipeline = Pipeline::new()
+    .pipe(CommandConfig::new("echo", vec!["hello".to_string()]))
+    .pipe(CommandConfig::new("tr", vec!["a-z".to_string(), "A-Z".to_string()]));
+
+let result = PipelineExecutor::execute(&pipeline)?;
+```
+
+### Cargo.toml 配置示例
+
+```toml
+# 默认：启用所有功能（logging, metrics, health, pipeline）
+[dependencies]
+execute = "0.1"
+
+# 仅核心功能（最小体积）
+[dependencies]
+execute = { version = "0.1", default-features = false }
+
+# 核心 + 日志 + 指标
+[dependencies]
+execute = { version = "0.1", default-features = false, features = ["logging", "metrics"] }
+
+# 全功能（显式启用所有）
+[dependencies]
+execute = { version = "0.1", features = ["full"] }
 ```
 
 ## 功能使用指南

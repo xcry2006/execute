@@ -2,6 +2,14 @@
 name = "execute"
 version = "0.1.0"
 edition = "2024"
+rust-version = "1.85"
+
+# docs.rs 文档生成配置
+[package.metadata.docs.rs]
+# 生成文档时启用所有 features，确保所有 API 都可见
+all-features = true
+# 显示 feature 标志
+rustdoc-args = ["--cfg", "docsrs"]
 
 [dependencies]
 thiserror = "2.0.17"

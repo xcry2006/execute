@@ -203,6 +203,84 @@ cargo clippy --all-targets --all-features -- -D warnings
 cargo fmt --all -- --check
 ```
 
+### GitHub Actions CI 工作流
+
+项目使用 GitHub Actions 进行持续集成，配置文件位于 `.github/workflows/ci.yml`。
+
+#### 触发条件
+
+- **Push**: 推送到 `master`、`main` 或 `feature/*` 分支
+- **Pull Request**: 所有 Pull Request
+
+#### CI 任务
+
+| 步骤 | 命令 | 说明 |
+|------|------|------|
+| Build | `cargo build --all-targets` | 编译所有目标（库、二进制、测试） |
+| Test | `cargo test --all` | 运行所有测试（单元测试 + 集成测试） |
+| Clippy | `cargo clippy --all-targets --all-features -- -D warnings` | 代码质量检查，零警告要求 |
+| Format | `cargo fmt --all -- --check` | 代码格式检查 |
+
+#### 本地预提交检查脚本
+
+可以创建以下脚本在本地运行完整的 CI 检查：
+
+```bash
+#!/bin/bash
+# ci-check.sh - 本地 CI 检查脚本
+
+set -e
+
+echo "=== 1. Building all targets ==="
+cargo build --all-targets
+
+echo "=== 2. Running all tests ==="
+cargo test --all
+
+echo "=== 3. Running Clippy ==="
+cargo clippy --all-targets --all-features -- -D warnings
+
+echo "=== 4. Checking formatting ==="
+cargo fmt --all -- --check
+
+echo "=== All CI checks passed! ==="
+```
+
+使用方式：
+```bash
+chmod +x ci-check.sh
+./ci-check.sh
+```
+
+### Feature 相关测试
+
+由于项目使用 Cargo features 进行模块化，测试时需要注意：
+
+```bash
+# 测试所有 features（默认）
+cargo test --all
+
+# 测试特定 feature 组合
+cargo test --all --features "logging,metrics"
+
+# 测试无默认 features（仅核心功能）
+cargo test --all --no-default-features
+
+# 测试单个 feature
+cargo test --all --no-default-features --features "logging"
+```
+
+### 测试不同 Feature 组合
+
+| Feature 组合 | 测试命令 |
+|-------------|----------|
+| 全功能 | `cargo test --all --all-features` |
+| 仅核心 | `cargo test --all --no-default-features` |
+| 核心 + 日志 | `cargo test --all --no-default-features --features "logging"` |
+| 核心 + 指标 | `cargo test --all --no-default-features --features "metrics"` |
+| 核心 + 健康检查 | `cargo test --all --no-default-features --features "health"` |
+| 核心 + 管道 | `cargo test --all --no-default-features --features "pipeline"` |
+
 ## 添加新测试
 
 ### 单元测试
