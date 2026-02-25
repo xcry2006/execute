@@ -115,7 +115,9 @@ pub enum CommandError {
         source: std::io::Error,
     },
 
-    #[error("Command timeout: {context}, configured_timeout={configured_timeout:?}, actual_duration={actual_duration:?}")]
+    #[error(
+        "Command timeout: {context}, configured_timeout={configured_timeout:?}, actual_duration={actual_duration:?}"
+    )]
     Timeout {
         context: ErrorContext,
         configured_timeout: Duration,

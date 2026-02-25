@@ -11,9 +11,9 @@ use execute::{CommandConfig, RetryPolicy, RetryStrategy, execute_with_retry};
 use proptest::prelude::*;
 use std::sync::{Arc, Mutex};
 use std::time::Duration;
+use tracing_subscriber::Layer;
 use tracing_subscriber::layer::SubscriberExt;
 use tracing_subscriber::util::SubscriberInitExt;
-use tracing_subscriber::Layer;
 
 /// 捕获日志的层
 struct LogCapture {
@@ -23,12 +23,7 @@ struct LogCapture {
 impl LogCapture {
     fn new() -> (Self, Arc<Mutex<Vec<String>>>) {
         let logs = Arc::new(Mutex::new(Vec::new()));
-        (
-            Self {
-                logs: logs.clone(),
-            },
-            logs,
-        )
+        (Self { logs: logs.clone() }, logs)
     }
 }
 
@@ -58,7 +53,8 @@ impl tracing::field::Visit for LogVisitor {
         if !self.message.is_empty() {
             self.message.push_str(", ");
         }
-        self.message.push_str(&format!("{} = {:?}", field.name(), value));
+        self.message
+            .push_str(&format!("{} = {:?}", field.name(), value));
     }
 }
 
@@ -92,10 +88,10 @@ proptest! {
     ) {
         // 设置日志捕获
         let (log_capture, captured_logs) = LogCapture::new();
-        
+
         let subscriber = tracing_subscriber::registry()
             .with(log_capture);
-        
+
         let _guard = subscriber.set_default();
 
         // 清空之前的日志
@@ -157,10 +153,10 @@ proptest! {
     ) {
         // 设置日志捕获
         let (log_capture, captured_logs) = LogCapture::new();
-        
+
         let subscriber = tracing_subscriber::registry()
             .with(log_capture);
-        
+
         let _guard = subscriber.set_default();
 
         // 清空之前的日志
@@ -210,10 +206,10 @@ proptest! {
     ) {
         // 设置日志捕获
         let (log_capture, captured_logs) = LogCapture::new();
-        
+
         let subscriber = tracing_subscriber::registry()
             .with(log_capture);
-        
+
         let _guard = subscriber.set_default();
 
         // 清空之前的日志
@@ -246,17 +242,15 @@ proptest! {
 fn test_retry_logs_include_attempt_number() {
     // 测试日志包含具体的尝试次数
     let (log_capture, captured_logs) = LogCapture::new();
-    
-    let subscriber = tracing_subscriber::registry()
-        .with(log_capture);
-    
+
+    let subscriber = tracing_subscriber::registry().with(log_capture);
+
     let _guard = subscriber.set_default();
 
     captured_logs.lock().unwrap().clear();
 
     let policy = RetryPolicy::new(3, RetryStrategy::FixedInterval(Duration::from_millis(10)));
-    let config = CommandConfig::new("nonexistent_cmd_xyz", vec![])
-        .with_retry(policy);
+    let config = CommandConfig::new("nonexistent_cmd_xyz", vec![]).with_retry(policy);
 
     let _ = execute_with_retry(&config, 1);
 
@@ -265,7 +259,8 @@ fn test_retry_logs_include_attempt_number() {
 
     // 验证日志包含尝试次数（attempt = 1, 2, 3）
     assert!(
-        log_text.contains("attempt") && (log_text.contains("1") || log_text.contains("2") || log_text.contains("3")),
+        log_text.contains("attempt")
+            && (log_text.contains("1") || log_text.contains("2") || log_text.contains("3")),
         "Logs should contain specific attempt numbers"
     );
 }
@@ -275,18 +270,16 @@ fn test_retry_logs_include_attempt_number() {
 fn test_retry_logs_include_max_attempts() {
     // 测试日志包含最大尝试次数
     let (log_capture, captured_logs) = LogCapture::new();
-    
-    let subscriber = tracing_subscriber::registry()
-        .with(log_capture);
-    
+
+    let subscriber = tracing_subscriber::registry().with(log_capture);
+
     let _guard = subscriber.set_default();
 
     captured_logs.lock().unwrap().clear();
 
     let policy = RetryPolicy::new(5, RetryStrategy::FixedInterval(Duration::from_millis(10)));
     // Use a command that will actually fail (spawn failure)
-    let config = CommandConfig::new("nonexistent_command_xyz_12345", vec![])
-        .with_retry(policy);
+    let config = CommandConfig::new("nonexistent_command_xyz_12345", vec![]).with_retry(policy);
 
     let _ = execute_with_retry(&config, 2);
 
@@ -295,7 +288,9 @@ fn test_retry_logs_include_max_attempts() {
 
     // 验证日志包含最大尝试次数信息或重试相关信息
     assert!(
-        log_text.contains("max_attempts") || log_text.contains("5") || log_text.contains("Retrying"),
+        log_text.contains("max_attempts")
+            || log_text.contains("5")
+            || log_text.contains("Retrying"),
         "Logs should contain max attempts or retry information, got: {}",
         log_text
     );
@@ -306,10 +301,9 @@ fn test_retry_logs_include_max_attempts() {
 fn test_retry_logs_include_failure_reason() {
     // 测试日志包含失败原因
     let (log_capture, captured_logs) = LogCapture::new();
-    
-    let subscriber = tracing_subscriber::registry()
-        .with(log_capture);
-    
+
+    let subscriber = tracing_subscriber::registry().with(log_capture);
+
     let _guard = subscriber.set_default();
 
     captured_logs.lock().unwrap().clear();
@@ -336,18 +330,16 @@ fn test_retry_logs_include_failure_reason() {
 fn test_retry_logs_final_failure_message() {
     // 测试日志包含最终失败消息
     let (log_capture, captured_logs) = LogCapture::new();
-    
-    let subscriber = tracing_subscriber::registry()
-        .with(log_capture);
-    
+
+    let subscriber = tracing_subscriber::registry().with(log_capture);
+
     let _guard = subscriber.set_default();
 
     captured_logs.lock().unwrap().clear();
 
     let policy = RetryPolicy::new(2, RetryStrategy::FixedInterval(Duration::from_millis(10)));
     // Use a command that will actually fail (spawn failure)
-    let config = CommandConfig::new("nonexistent_command_xyz_12345", vec![])
-        .with_retry(policy);
+    let config = CommandConfig::new("nonexistent_command_xyz_12345", vec![]).with_retry(policy);
 
     let _ = execute_with_retry(&config, 4);
 
@@ -356,10 +348,10 @@ fn test_retry_logs_final_failure_message() {
 
     // 验证日志包含最终失败消息或重试相关信息
     assert!(
-        log_text.contains("failed after all retry attempts") || 
-        log_text.contains("Command failed") ||
-        log_text.contains("Retrying") ||
-        log_text.contains("failed"),
+        log_text.contains("failed after all retry attempts")
+            || log_text.contains("Command failed")
+            || log_text.contains("Retrying")
+            || log_text.contains("failed"),
         "Logs should contain final failure or retry message, got: {}",
         log_text
     );
@@ -370,10 +362,9 @@ fn test_retry_logs_final_failure_message() {
 fn test_no_retry_logs_without_retry_policy() {
     // 测试没有配置重试策略时不应该有重试日志
     let (log_capture, captured_logs) = LogCapture::new();
-    
-    let subscriber = tracing_subscriber::registry()
-        .with(log_capture);
-    
+
+    let subscriber = tracing_subscriber::registry().with(log_capture);
+
     let _guard = subscriber.set_default();
 
     captured_logs.lock().unwrap().clear();

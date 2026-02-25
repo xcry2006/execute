@@ -2,7 +2,7 @@
 //!
 //! 对比标准 apply_env_config 与优化版本的性能差异。
 
-use execute::{apply_env_config_optimized, CommandConfig, EnvCache, EnvOptimizer, EnvConfig};
+use execute::{CommandConfig, EnvCache, EnvConfig, EnvOptimizer, apply_env_config_optimized};
 use std::process::Command;
 use std::time::Instant;
 
@@ -72,12 +72,20 @@ fn test_small_env() {
     }
     let optimized_time = start.elapsed();
 
-    println!("  标准实现: {:?} ({:.0} 次/秒)", 
-             standard_time, iterations as f64 / standard_time.as_secs_f64());
-    println!("  优化实现: {:?} ({:.0} 次/秒)", 
-             optimized_time, iterations as f64 / optimized_time.as_secs_f64());
-    println!("  加速比: {:.2}x\n", 
-             standard_time.as_secs_f64() / optimized_time.as_secs_f64());
+    println!(
+        "  标准实现: {:?} ({:.0} 次/秒)",
+        standard_time,
+        iterations as f64 / standard_time.as_secs_f64()
+    );
+    println!(
+        "  优化实现: {:?} ({:.0} 次/秒)",
+        optimized_time,
+        iterations as f64 / optimized_time.as_secs_f64()
+    );
+    println!(
+        "  加速比: {:.2}x\n",
+        standard_time.as_secs_f64() / optimized_time.as_secs_f64()
+    );
 }
 
 fn test_large_env() {
@@ -105,12 +113,20 @@ fn test_large_env() {
     }
     let optimized_time = start.elapsed();
 
-    println!("  标准实现: {:?} ({:.0} 次/秒)", 
-             standard_time, iterations as f64 / standard_time.as_secs_f64());
-    println!("  优化实现: {:?} ({:.0} 次/秒)", 
-             optimized_time, iterations as f64 / optimized_time.as_secs_f64());
-    println!("  加速比: {:.2}x\n", 
-             standard_time.as_secs_f64() / optimized_time.as_secs_f64());
+    println!(
+        "  标准实现: {:?} ({:.0} 次/秒)",
+        standard_time,
+        iterations as f64 / standard_time.as_secs_f64()
+    );
+    println!(
+        "  优化实现: {:?} ({:.0} 次/秒)",
+        optimized_time,
+        iterations as f64 / optimized_time.as_secs_f64()
+    );
+    println!(
+        "  加速比: {:.2}x\n",
+        standard_time.as_secs_f64() / optimized_time.as_secs_f64()
+    );
 }
 
 fn test_cache_performance() {
@@ -141,12 +157,20 @@ fn test_cache_performance() {
     }
     let cached_time = start.elapsed();
 
-    println!("  无缓存: {:?} ({:.0} 次/秒)", 
-             no_cache_time, iterations as f64 / no_cache_time.as_secs_f64());
-    println!("  有缓存: {:?} ({:.0} 次/秒)", 
-             cached_time, iterations as f64 / cached_time.as_secs_f64());
-    println!("  缓存加速比: {:.2}x", 
-             no_cache_time.as_secs_f64() / cached_time.as_secs_f64());
+    println!(
+        "  无缓存: {:?} ({:.0} 次/秒)",
+        no_cache_time,
+        iterations as f64 / no_cache_time.as_secs_f64()
+    );
+    println!(
+        "  有缓存: {:?} ({:.0} 次/秒)",
+        cached_time,
+        iterations as f64 / cached_time.as_secs_f64()
+    );
+    println!(
+        "  缓存加速比: {:.2}x",
+        no_cache_time.as_secs_f64() / cached_time.as_secs_f64()
+    );
     println!("  缓存大小: {}\n", cache.len());
 }
 
@@ -178,12 +202,20 @@ fn test_batch_apply() {
     }
     let batch_time = start.elapsed();
 
-    println!("  逐个设置: {:?} ({:.0} 次/秒)", 
-             individual_time, iterations as f64 / individual_time.as_secs_f64());
-    println!("  批量设置: {:?} ({:.0} 次/秒)", 
-             batch_time, iterations as f64 / batch_time.as_secs_f64());
-    println!("  批量加速比: {:.2}x\n", 
-             individual_time.as_secs_f64() / batch_time.as_secs_f64());
+    println!(
+        "  逐个设置: {:?} ({:.0} 次/秒)",
+        individual_time,
+        iterations as f64 / individual_time.as_secs_f64()
+    );
+    println!(
+        "  批量设置: {:?} ({:.0} 次/秒)",
+        batch_time,
+        iterations as f64 / batch_time.as_secs_f64()
+    );
+    println!(
+        "  批量加速比: {:.2}x\n",
+        individual_time.as_secs_f64() / batch_time.as_secs_f64()
+    );
 }
 
 fn test_real_command_execution() {
@@ -219,10 +251,18 @@ fn test_real_command_execution() {
     }
     let optimized_time = start.elapsed();
 
-    println!("  标准方式: {:?} ({:.0} 次/秒)", 
-             standard_time, iterations as f64 / standard_time.as_secs_f64());
-    println!("  优化方式: {:?} ({:.0} 次/秒)", 
-             optimized_time, iterations as f64 / optimized_time.as_secs_f64());
-    println!("  加速比: {:.2}x\n", 
-             standard_time.as_secs_f64() / optimized_time.as_secs_f64());
+    println!(
+        "  标准方式: {:?} ({:.0} 次/秒)",
+        standard_time,
+        iterations as f64 / standard_time.as_secs_f64()
+    );
+    println!(
+        "  优化方式: {:?} ({:.0} 次/秒)",
+        optimized_time,
+        iterations as f64 / optimized_time.as_secs_f64()
+    );
+    println!(
+        "  加速比: {:.2}x\n",
+        standard_time.as_secs_f64() / optimized_time.as_secs_f64()
+    );
 }

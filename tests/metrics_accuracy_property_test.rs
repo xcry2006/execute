@@ -14,8 +14,8 @@
 use execute::{CommandConfig, CommandPool};
 use proptest::prelude::*;
 use proptest::strategy::ValueTree;
-use std::sync::atomic::{AtomicBool, Ordering};
 use std::sync::Arc;
+use std::sync::atomic::{AtomicBool, Ordering};
 use std::time::Duration;
 
 /// 生成任务数量策略（1-20个任务）
@@ -383,7 +383,7 @@ fn test_metrics_accuracy_queued_and_running() {
     // 立即检查指标（可能有任务在队列中或正在运行）
     let during_execution = pool.metrics();
     assert_eq!(during_execution.tasks_submitted, task_count as u64);
-    
+
     // 队列中的任务数 + 正在运行的任务数 应该 <= 提交的任务数
     let in_progress = during_execution.tasks_queued + during_execution.tasks_running;
     assert!(
@@ -442,14 +442,14 @@ fn test_metrics_accuracy_invariant() {
     let checker_thread = std::thread::spawn(move || {
         while !stop_flag_clone.load(Ordering::Relaxed) {
             let metrics = pool_clone.metrics();
-            
+
             // 不变量：queued + running + completed + failed + cancelled <= submitted
             let accounted = metrics.tasks_queued as u64
                 + metrics.tasks_running as u64
                 + metrics.tasks_completed
                 + metrics.tasks_failed
                 + metrics.tasks_cancelled;
-            
+
             assert!(
                 accounted <= metrics.tasks_submitted,
                 "Invariant violated: queued({}) + running({}) + completed({}) + failed({}) + cancelled({}) = {} > submitted({})",
@@ -461,7 +461,7 @@ fn test_metrics_accuracy_invariant() {
                 accounted,
                 metrics.tasks_submitted
             );
-            
+
             std::thread::sleep(Duration::from_millis(10));
         }
     });
@@ -481,7 +481,7 @@ fn test_metrics_accuracy_invariant() {
     // 验证最终指标
     let final_metrics = pool.metrics();
     assert_eq!(final_metrics.tasks_submitted, task_count as u64);
-    
+
     // 最终状态：completed + failed = submitted
     let total_finished = final_metrics.tasks_completed + final_metrics.tasks_failed;
     assert_eq!(

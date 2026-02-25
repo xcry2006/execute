@@ -28,10 +28,7 @@ fn command_strategy() -> impl Strategy<Value = String> {
     }
     #[cfg(not(unix))]
     {
-        prop_oneof![
-            Just("echo".to_string()),
-            Just("cmd".to_string()),
-        ]
+        prop_oneof![Just("echo".to_string()), Just("cmd".to_string()),]
     }
 }
 
@@ -53,12 +50,12 @@ fn args_strategy() -> impl Strategy<Value = Vec<String>> {
 fn command_config_strategy() -> impl Strategy<Value = CommandConfig> {
     (command_strategy(), args_strategy()).prop_map(|(cmd, args)| {
         let mut config = CommandConfig::new(&cmd, args);
-        
+
         // 为某些命令添加超时，避免测试运行太久
         if cmd == "sleep" {
             config = config.with_timeout(Duration::from_millis(100));
         }
-        
+
         config
     })
 }
@@ -85,7 +82,11 @@ fn test_log_integrity_single_task() {
     let result = handle.wait();
 
     // 验证任务成功执行
-    assert!(result.is_ok(), "Task {} should complete successfully", task_id);
+    assert!(
+        result.is_ok(),
+        "Task {} should complete successfully",
+        task_id
+    );
 
     // 关闭命令池
     let _ = pool.shutdown_with_timeout(Duration::from_secs(2));
@@ -127,7 +128,7 @@ proptest! {
                 return Ok(());
             }
         };
-        
+
         let task_id = handle.id();
         let command = config.program().to_string();
 
@@ -180,10 +181,14 @@ fn test_log_integrity_for_failed_task() {
 
     // 验证任务执行完成
     assert!(result.is_ok(), "Task {} should complete", task_id);
-    
+
     // 验证任务失败（false 命令返回非零退出码）
     if let Ok(output) = result {
-        assert!(!output.status.success(), "Task {} should have failed", task_id);
+        assert!(
+            !output.status.success(),
+            "Task {} should have failed",
+            task_id
+        );
     }
 
     // 关闭命令池
@@ -245,7 +250,11 @@ fn test_log_integrity_multiple_tasks() {
     for handle in handles {
         let task_id = handle.id();
         let result = handle.wait();
-        assert!(result.is_ok(), "Task {} should complete successfully", task_id);
+        assert!(
+            result.is_ok(),
+            "Task {} should complete successfully",
+            task_id
+        );
     }
 
     // 关闭命令池
@@ -277,7 +286,11 @@ fn test_log_integrity_with_concurrent_tasks() {
     for handle in handles {
         let task_id = handle.id();
         let result = handle.wait();
-        assert!(result.is_ok(), "Task {} should complete successfully", task_id);
+        assert!(
+            result.is_ok(),
+            "Task {} should complete successfully",
+            task_id
+        );
     }
 
     // 关闭命令池

@@ -285,8 +285,7 @@ impl Default for ResourceLimits {
 /// let cfg = CommandConfig::new("sleep", vec!["5".to_string()])
 ///     .with_timeout(Duration::from_secs(2));
 /// ```
-#[derive(Debug, Clone)]
-#[derive(PartialEq)]
+#[derive(Debug, Clone, PartialEq)]
 pub struct CommandConfig {
     pub(crate) program: String,
     pub(crate) args: Vec<String>,
@@ -824,8 +823,7 @@ pub enum ShutdownState {
 /// let config = TimeoutConfig::new()
 ///     .with_execution_timeout(Duration::from_secs(30));
 /// ```
-#[derive(Debug, Clone, Default)]
-#[derive(PartialEq)]
+#[derive(Debug, Clone, Default, PartialEq)]
 pub struct TimeoutConfig {
     /// 命令启动超时
     ///
@@ -931,8 +929,7 @@ impl TimeoutConfig {
 ///     .no_inherit()
 ///     .set("PATH", "/usr/bin");
 /// ```
-#[derive(Debug, Clone)]
-#[derive(PartialEq)]
+#[derive(Debug, Clone, PartialEq)]
 pub struct EnvConfig {
     /// 环境变量映射
     ///

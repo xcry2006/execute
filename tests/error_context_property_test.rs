@@ -47,8 +47,16 @@ fn working_dir_strategy() -> impl Strategy<Value = Option<PathBuf>> {
 #[cfg(unix)]
 fn timeout_command_strategy() -> impl Strategy<Value = (String, Vec<String>, Duration)> {
     prop_oneof![
-        Just(("sleep".to_string(), vec!["10".to_string()], Duration::from_millis(50))),
-        Just(("sleep".to_string(), vec!["5".to_string()], Duration::from_millis(100))),
+        Just((
+            "sleep".to_string(),
+            vec!["10".to_string()],
+            Duration::from_millis(50)
+        )),
+        Just((
+            "sleep".to_string(),
+            vec!["5".to_string()],
+            Duration::from_millis(100)
+        )),
     ]
 }
 
@@ -228,8 +236,8 @@ fn test_error_context_for_nonexistent_command() {
 
 #[test]
 fn test_error_context_with_custom_working_dir() {
-    let config = CommandConfig::new("invalid_cmd", vec!["arg1".to_string()])
-        .with_working_dir("/tmp");
+    let config =
+        CommandConfig::new("invalid_cmd", vec!["arg1".to_string()]).with_working_dir("/tmp");
     let task_id = 123;
 
     let result = execute_command_with_context(&config, task_id);
@@ -244,8 +252,8 @@ fn test_error_context_with_custom_working_dir() {
 #[test]
 #[cfg(unix)]
 fn test_error_context_for_timeout() {
-    let config = CommandConfig::new("sleep", vec!["10".to_string()])
-        .with_timeout(Duration::from_millis(50));
+    let config =
+        CommandConfig::new("sleep", vec!["10".to_string()]).with_timeout(Duration::from_millis(50));
     let task_id = 999;
 
     let result = execute_command_with_context(&config, task_id);
@@ -309,11 +317,7 @@ fn test_error_context_display_format() {
 
 #[test]
 fn test_error_context_with_multiple_args() {
-    let args = vec![
-        "arg1".to_string(),
-        "arg2".to_string(),
-        "arg3".to_string(),
-    ];
+    let args = vec!["arg1".to_string(), "arg2".to_string(), "arg3".to_string()];
     let config = CommandConfig::new("fake_program", args.clone());
     let task_id = 555;
 

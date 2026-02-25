@@ -48,7 +48,7 @@ fn test_echo_warmup() {
 
     let start = Instant::now();
     for _ in 0..count {
-        let mut child = pool.execute_with_warm(&config).unwrap();
+        let child = pool.execute_with_warm(&config).unwrap();
         let output = child.wait_with_output().unwrap();
         let _ = String::from_utf8_lossy(&output.stdout);
     }
@@ -56,8 +56,10 @@ fn test_echo_warmup() {
 
     println!("  非预热执行: {:?}", no_warm_time);
     println!("  预热执行:   {:?}", warm_time);
-    println!("  加速比: {:.2}x\n", 
-             no_warm_time.as_secs_f64() / warm_time.as_secs_f64());
+    println!(
+        "  加速比: {:.2}x\n",
+        no_warm_time.as_secs_f64() / warm_time.as_secs_f64()
+    );
 }
 
 fn test_true_warmup() {
@@ -85,8 +87,10 @@ fn test_true_warmup() {
 
     println!("  非预热执行: {:?}", no_warm_time);
     println!("  预热执行:   {:?}", warm_time);
-    println!("  加速比: {:.2}x\n", 
-             no_warm_time.as_secs_f64() / warm_time.as_secs_f64());
+    println!(
+        "  加速比: {:.2}x\n",
+        no_warm_time.as_secs_f64() / warm_time.as_secs_f64()
+    );
 }
 
 fn test_warm_executor() {
@@ -118,8 +122,10 @@ fn test_warm_executor() {
 
     println!("  标准执行器: {:?}", standard_time);
     println!("  预热执行器: {:?}", warm_time);
-    println!("  加速比: {:.2}x\n", 
-             standard_time.as_secs_f64() / warm_time.as_secs_f64());
+    println!(
+        "  加速比: {:.2}x\n",
+        standard_time.as_secs_f64() / warm_time.as_secs_f64()
+    );
 }
 
 fn test_warmup_counts() {
@@ -130,7 +136,7 @@ fn test_warmup_counts() {
     let warm_counts = [0, 1, 2, 4, 8];
     for &warm_count in &warm_counts {
         let pool = WarmProcessPool::new(8, std::time::Duration::from_secs(60));
-        
+
         // 预热
         if warm_count > 0 {
             pool.warm_up(&config, warm_count).unwrap();
@@ -179,6 +185,8 @@ fn test_long_running() {
     println!("  执行 {} 次: {:?}", iterations, elapsed);
     println!("  成功率: {:.1}%", success_rate);
     println!("  平均每次: {:?}", elapsed / iterations);
-    println!("  吞吐量: {:.0} 次/秒\n", 
-             iterations as f64 / elapsed.as_secs_f64());
+    println!(
+        "  吞吐量: {:.0} 次/秒\n",
+        iterations as f64 / elapsed.as_secs_f64()
+    );
 }

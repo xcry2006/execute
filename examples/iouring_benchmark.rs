@@ -4,15 +4,14 @@
 //! 需要 Linux 5.1+ 内核支持。
 
 #[cfg(feature = "iouring")]
-use execute::{CommandConfig, IoUringExecutor, execute_batch_iouring};
-#[cfg(not(feature = "iouring"))]
 use execute::CommandConfig;
 
+#[cfg(feature = "iouring")]
+use execute::{IoUringExecutor, execute_batch_iouring};
+#[cfg(feature = "iouring")]
 use std::time::Instant;
 
 fn main() {
-    println!("=== io_uring 性能测试 ===\n");
-
     #[cfg(not(feature = "iouring"))]
     {
         println!("警告：未启用 iouring feature");
@@ -65,11 +64,17 @@ fn compare_single_execution() {
     }
     let iouring_time = start.elapsed();
 
-    println!("  标准执行器: {:?} ({:.0} 次/秒)", 
-             standard_time, count as f64 / standard_time.as_secs_f64());
-    println!("  io_uring:   {:?} ({:.0} 次/秒)", 
-             iouring_time, count as f64 / iouring_time.as_secs_f64());
-    
+    println!(
+        "  标准执行器: {:?} ({:.0} 次/秒)",
+        standard_time,
+        count as f64 / standard_time.as_secs_f64()
+    );
+    println!(
+        "  io_uring:   {:?} ({:.0} 次/秒)",
+        iouring_time,
+        count as f64 / iouring_time.as_secs_f64()
+    );
+
     let speedup = standard_time.as_secs_f64() / iouring_time.as_secs_f64();
     println!("  加速比: {:.2}x", speedup);
 }
@@ -97,7 +102,7 @@ fn compare_batch_execution() {
 
     println!("  标准顺序执行: {:?}", standard_time);
     println!("  io_uring批量: {:?}", iouring_time);
-    
+
     let speedup = standard_time.as_secs_f64() / iouring_time.as_secs_f64();
     println!("  加速比: {:.2}x", speedup);
 }
@@ -115,7 +120,10 @@ fn test_iouring_throughput() {
     let elapsed = start.elapsed();
 
     println!("  执行 {} 个 true 命令: {:?}", count, elapsed);
-    println!("  吞吐量: {:.0} 命令/秒", count as f64 / elapsed.as_secs_f64());
+    println!(
+        "  吞吐量: {:.0} 命令/秒",
+        count as f64 / elapsed.as_secs_f64()
+    );
 }
 
 #[cfg(not(feature = "iouring"))]

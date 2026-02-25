@@ -18,7 +18,7 @@ use std::collections::HashMap;
 /// - 长度在 1-50 之间
 fn env_var_name_strategy() -> impl Strategy<Value = String> {
     use proptest::char;
-    
+
     // 第一个字符：字母或下划线
     let first_char = prop_oneof![
         char::range('A', 'Z').prop_map(|c| c.to_string()),
@@ -45,7 +45,7 @@ fn env_var_name_strategy() -> impl Strategy<Value = String> {
 /// 值可以包含任意可打印字符，但避免换行符以简化测试
 fn env_var_value_strategy() -> impl Strategy<Value = String> {
     use proptest::char;
-    
+
     // 使用可打印的 ASCII 字符，避免换行符和特殊字符
     prop::collection::vec(
         prop_oneof![
@@ -129,7 +129,7 @@ proptest! {
             let actual_value = actual_value.strip_suffix('\n')
                 .or_else(|| actual_value.strip_suffix("\r\n"))
                 .unwrap_or(&actual_value);
-            
+
             prop_assert_eq!(
                 actual_value,
                 expected_value.as_str(),
@@ -257,7 +257,7 @@ proptest! {
         let actual_value = actual_value.strip_suffix('\n')
             .or_else(|| actual_value.strip_suffix("\r\n"))
             .unwrap_or(&actual_value);
-        
+
         prop_assert_eq!(
             actual_value,
             value.as_str(),
@@ -282,8 +282,7 @@ fn test_single_env_var_passing() {
 
     let env_config = EnvConfig::new().set("TEST_VAR", "test_value");
 
-    let config = CommandConfig::new("printenv", vec!["TEST_VAR".to_string()])
-        .with_env(env_config);
+    let config = CommandConfig::new("printenv", vec!["TEST_VAR".to_string()]).with_env(env_config);
 
     let result = execute::execute_with_retry(&config, 1);
 
@@ -292,7 +291,8 @@ fn test_single_env_var_passing() {
     assert!(output.status.success(), "Exit status should be success");
 
     let actual_value = String::from_utf8_lossy(&output.stdout);
-    let actual_value = actual_value.strip_suffix('\n')
+    let actual_value = actual_value
+        .strip_suffix('\n')
         .or_else(|| actual_value.strip_suffix("\r\n"))
         .unwrap_or(&actual_value);
     assert_eq!(actual_value, "test_value");
@@ -314,17 +314,22 @@ fn test_multiple_env_vars_passing() {
 
     // 验证每个变量
     for (key, expected) in [("VAR1", "value1"), ("VAR2", "value2"), ("VAR3", "value3")] {
-        let config = CommandConfig::new("printenv", vec![key.to_string()])
-            .with_env(env_config.clone());
+        let config =
+            CommandConfig::new("printenv", vec![key.to_string()]).with_env(env_config.clone());
 
         let result = execute::execute_with_retry(&config, 2);
         assert!(result.is_ok(), "Command should succeed for {}", key);
 
         let output = result.unwrap();
-        assert!(output.status.success(), "Exit status should be success for {}", key);
+        assert!(
+            output.status.success(),
+            "Exit status should be success for {}",
+            key
+        );
 
         let actual_value = String::from_utf8_lossy(&output.stdout);
-        let actual_value = actual_value.strip_suffix('\n')
+        let actual_value = actual_value
+            .strip_suffix('\n')
             .or_else(|| actual_value.strip_suffix("\r\n"))
             .unwrap_or(&actual_value);
         assert_eq!(actual_value, expected, "Value mismatch for {}", key);
@@ -342,8 +347,7 @@ fn test_env_var_with_spaces() {
 
     let env_config = EnvConfig::new().set("TEST_VAR", "value with spaces");
 
-    let config = CommandConfig::new("printenv", vec!["TEST_VAR".to_string()])
-        .with_env(env_config);
+    let config = CommandConfig::new("printenv", vec!["TEST_VAR".to_string()]).with_env(env_config);
 
     let result = execute::execute_with_retry(&config, 3);
 
@@ -352,7 +356,8 @@ fn test_env_var_with_spaces() {
     assert!(output.status.success(), "Exit status should be success");
 
     let actual_value = String::from_utf8_lossy(&output.stdout);
-    let actual_value = actual_value.strip_suffix('\n')
+    let actual_value = actual_value
+        .strip_suffix('\n')
         .or_else(|| actual_value.strip_suffix("\r\n"))
         .unwrap_or(&actual_value);
     assert_eq!(actual_value, "value with spaces");
@@ -369,8 +374,7 @@ fn test_env_var_with_special_characters() {
 
     let env_config = EnvConfig::new().set("TEST_VAR", "path/to/file:123");
 
-    let config = CommandConfig::new("printenv", vec!["TEST_VAR".to_string()])
-        .with_env(env_config);
+    let config = CommandConfig::new("printenv", vec!["TEST_VAR".to_string()]).with_env(env_config);
 
     let result = execute::execute_with_retry(&config, 4);
 
@@ -379,7 +383,8 @@ fn test_env_var_with_special_characters() {
     assert!(output.status.success(), "Exit status should be success");
 
     let actual_value = String::from_utf8_lossy(&output.stdout);
-    let actual_value = actual_value.strip_suffix('\n')
+    let actual_value = actual_value
+        .strip_suffix('\n')
         .or_else(|| actual_value.strip_suffix("\r\n"))
         .unwrap_or(&actual_value);
     assert_eq!(actual_value, "path/to/file:123");
@@ -396,8 +401,7 @@ fn test_env_var_empty_value() {
 
     let env_config = EnvConfig::new().set("TEST_VAR", "");
 
-    let config = CommandConfig::new("printenv", vec!["TEST_VAR".to_string()])
-        .with_env(env_config);
+    let config = CommandConfig::new("printenv", vec!["TEST_VAR".to_string()]).with_env(env_config);
 
     let result = execute::execute_with_retry(&config, 5);
 
@@ -406,7 +410,8 @@ fn test_env_var_empty_value() {
     assert!(output.status.success(), "Exit status should be success");
 
     let actual_value = String::from_utf8_lossy(&output.stdout);
-    let actual_value = actual_value.strip_suffix('\n')
+    let actual_value = actual_value
+        .strip_suffix('\n')
         .or_else(|| actual_value.strip_suffix("\r\n"))
         .unwrap_or(&actual_value);
     assert_eq!(actual_value, "");
@@ -426,8 +431,7 @@ fn test_env_var_overwrite_existing() {
     let custom_value = "custom_test_value";
     let env_config = EnvConfig::new().set("USER", custom_value);
 
-    let config = CommandConfig::new("printenv", vec!["USER".to_string()])
-        .with_env(env_config);
+    let config = CommandConfig::new("printenv", vec!["USER".to_string()]).with_env(env_config);
 
     let result = execute::execute_with_retry(&config, 6);
 
@@ -436,7 +440,8 @@ fn test_env_var_overwrite_existing() {
     assert!(output.status.success(), "Exit status should be success");
 
     let actual_value = String::from_utf8_lossy(&output.stdout);
-    let actual_value = actual_value.strip_suffix('\n')
+    let actual_value = actual_value
+        .strip_suffix('\n')
         .or_else(|| actual_value.strip_suffix("\r\n"))
         .unwrap_or(&actual_value);
     assert_eq!(actual_value, custom_value);
@@ -455,8 +460,7 @@ fn test_env_var_inherit_parent() {
     let env_config = EnvConfig::new().set("NEW_VAR", "new_value");
 
     // PATH 应该从父进程继承
-    let config = CommandConfig::new("printenv", vec!["PATH".to_string()])
-        .with_env(env_config);
+    let config = CommandConfig::new("printenv", vec!["PATH".to_string()]).with_env(env_config);
 
     let result = execute::execute_with_retry(&config, 7);
 
@@ -466,10 +470,14 @@ fn test_env_var_inherit_parent() {
 
     // PATH 应该存在（从父进程继承）
     let actual_value = String::from_utf8_lossy(&output.stdout);
-    let actual_value = actual_value.strip_suffix('\n')
+    let actual_value = actual_value
+        .strip_suffix('\n')
         .or_else(|| actual_value.strip_suffix("\r\n"))
         .unwrap_or(&actual_value);
-    assert!(!actual_value.is_empty(), "PATH should be inherited from parent");
+    assert!(
+        !actual_value.is_empty(),
+        "PATH should be inherited from parent"
+    );
 }
 
 #[test]
@@ -484,8 +492,7 @@ fn test_env_var_long_value() {
     let long_value = "a".repeat(1000);
     let env_config = EnvConfig::new().set("TEST_VAR", &long_value);
 
-    let config = CommandConfig::new("printenv", vec!["TEST_VAR".to_string()])
-        .with_env(env_config);
+    let config = CommandConfig::new("printenv", vec!["TEST_VAR".to_string()]).with_env(env_config);
 
     let result = execute::execute_with_retry(&config, 8);
 
@@ -494,7 +501,8 @@ fn test_env_var_long_value() {
     assert!(output.status.success(), "Exit status should be success");
 
     let actual_value = String::from_utf8_lossy(&output.stdout);
-    let actual_value = actual_value.strip_suffix('\n')
+    let actual_value = actual_value
+        .strip_suffix('\n')
         .or_else(|| actual_value.strip_suffix("\r\n"))
         .unwrap_or(&actual_value);
     assert_eq!(actual_value, long_value);

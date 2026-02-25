@@ -17,6 +17,7 @@ use crate::config::CommandConfig;
 use crate::error::ExecuteError;
 
 /// 预热的进程模板
+#[allow(dead_code)]
 struct ProcessTemplate {
     /// 命令配置
     config: CommandConfig,
@@ -62,7 +63,7 @@ impl ProcessTemplate {
             env_config.apply_to_command(&mut cmd);
         }
 
-        let child = cmd.spawn().map_err(|e| ExecuteError::Io(e))?;
+        let child = cmd.spawn().map_err(ExecuteError::Io)?;
         Ok(child)
     }
 
@@ -153,10 +154,13 @@ impl WarmProcessPool {
     /// * `count` - 预热进程数量
     pub fn warm_up(&self, config: &CommandConfig, count: usize) -> Result<(), ExecuteError> {
         let mut templates = self.templates.lock().unwrap();
-        
+
         // 查找是否已存在该命令的模板
         let config_str = format!("{:?}", config);
-        if let Some(template) = templates.iter_mut().find(|t| format!("{:?}", t.config) == config_str) {
+        if let Some(template) = templates
+            .iter_mut()
+            .find(|t| format!("{:?}", t.config) == config_str)
+        {
             template.warm_up(count)?;
         } else {
             // 创建新的模板
@@ -164,7 +168,7 @@ impl WarmProcessPool {
             template.warm_up(count)?;
             templates.push(template);
         }
-        
+
         Ok(())
     }
 
@@ -179,16 +183,16 @@ impl WarmProcessPool {
     /// 成功返回子进程，调用者需要负责 `wait()` 和收集输出
     pub fn execute_with_warm(&self, config: &CommandConfig) -> Result<Child, ExecuteError> {
         let mut templates = self.templates.lock().unwrap();
-        
+
         // 查找对应的模板
         if let Some(template) = templates.iter_mut().find(|t| &t.config == config) {
-            if let Some(mut child) = template.get_process() {
+            if let Some(child) = template.get_process() {
                 // 重置环境（如果需要）
                 // 这里可以根据需求实现更精细的重置逻辑
                 return Ok(child);
             }
         }
-        
+
         // 没有预热进程，直接创建
         self.create_process(config)
     }
@@ -207,14 +211,17 @@ impl WarmProcessPool {
             env_config.apply_to_command(&mut cmd);
         }
 
-        cmd.spawn().map_err(|e| ExecuteError::Io(e))
+        cmd.spawn().map_err(ExecuteError::Io)
     }
 
     /// 归还进程到池中
     pub fn return_process(&self, config: &CommandConfig, mut child: Child) {
         let mut templates = self.templates.lock().unwrap();
         let config_str = format!("{:?}", config);
-        if let Some(template) = templates.iter_mut().find(|t| format!("{:?}", t.config) == config_str) {
+        if let Some(template) = templates
+            .iter_mut()
+            .find(|t| format!("{:?}", t.config) == config_str)
+        {
             template.return_process(child);
         } else {
             // 模板不存在，直接关闭进程
@@ -288,16 +295,16 @@ impl WarmExecutor {
     ///
     /// 自动处理进程的获取和归还。
     pub fn execute(&self, config: &CommandConfig) -> Result<std::process::Output, ExecuteError> {
-        let mut child = self.pool.execute_with_warm(config)?;
-        let output = child.wait_with_output().map_err(|e| ExecuteError::Io(e))?;
-        
+        let child = self.pool.execute_with_warm(config)?;
+        let output = child.wait_with_output().map_err(ExecuteError::Io)?;
+
         // 如果进程正常退出，可以考虑归还（需要更复杂的逻辑判断）
         // 这里简化处理：只在特定条件下归还
         if output.status.success() && self.pool.idle_count(config) < 2 {
             // 进程成功且池中空闲进程较少，尝试归还
             // 注意：这需要更精确的进程状态管理
         }
-        
+
         Ok(output)
     }
 

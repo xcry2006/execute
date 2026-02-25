@@ -14,7 +14,7 @@ use std::time::Duration;
 /// 生成无效线程数策略（包括 0 和非常大的值）
 fn invalid_thread_count_strategy() -> impl Strategy<Value = usize> {
     prop_oneof![
-        Just(0), // 零线程数
+        Just(0),                       // 零线程数
         500_000usize..=2_000_000usize, // 超过系统限制的大值
     ]
 }
@@ -44,10 +44,7 @@ fn verify_error_message_clarity(error: &ConfigError, invalid_value_str: &str) {
     let error_msg = error.to_string();
 
     // 错误消息应该是非空的
-    assert!(
-        !error_msg.is_empty(),
-        "Error message should not be empty"
-    );
+    assert!(!error_msg.is_empty(), "Error message should not be empty");
 
     // 错误消息应该包含无效的值（对于数值类型）
     // 注意：对于非常大的数字，可能会以不同格式显示
@@ -58,8 +55,7 @@ fn verify_error_message_clarity(error: &ConfigError, invalid_value_str: &str) {
     assert!(
         contains_value,
         "Error message should contain the invalid value. Expected '{}' in '{}'",
-        invalid_value_str,
-        error_msg
+        invalid_value_str, error_msg
     );
 
     // 错误消息应该包含约束条件的描述
@@ -348,7 +344,10 @@ fn test_error_message_format_consistency() {
     // 测试所有错误消息格式的一致性
 
     let errors = vec![
-        PoolConfigBuilder::new().thread_count(0).build().unwrap_err(),
+        PoolConfigBuilder::new()
+            .thread_count(0)
+            .build()
+            .unwrap_err(),
         PoolConfigBuilder::new()
             .queue_capacity(0)
             .build()
@@ -396,7 +395,10 @@ fn test_error_message_format_consistency() {
 #[test]
 fn test_error_debug_format() {
     // 测试 Debug 格式也包含有用信息
-    let error = PoolConfigBuilder::new().thread_count(0).build().unwrap_err();
+    let error = PoolConfigBuilder::new()
+        .thread_count(0)
+        .build()
+        .unwrap_err();
 
     let debug_msg = format!("{:?}", error);
 

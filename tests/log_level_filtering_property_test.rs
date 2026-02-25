@@ -48,7 +48,7 @@ fn should_be_filtered(configured_level: LogLevel, message_level: LogLevel) -> bo
         LogLevel::Warn => 3,
         LogLevel::Error => 4,
     };
-    
+
     let message_value = match message_level {
         LogLevel::Trace => 0,
         LogLevel::Debug => 1,
@@ -56,7 +56,7 @@ fn should_be_filtered(configured_level: LogLevel, message_level: LogLevel) -> bo
         LogLevel::Warn => 3,
         LogLevel::Error => 4,
     };
-    
+
     // 如果消息级别低于配置级别，应该被过滤
     message_value < configured_value
 }
@@ -274,21 +274,19 @@ fn test_log_level_hierarchy() {
     for (i, &configured) in levels.iter().enumerate() {
         for (j, &message) in levels.iter().enumerate() {
             let should_filter = should_be_filtered(configured, message);
-            
+
             // 如果消息级别低于配置级别，应该被过滤
             if j < i {
                 assert!(
                     should_filter,
                     "Message level {:?} should be filtered when configured level is {:?}",
-                    message,
-                    configured
+                    message, configured
                 );
             } else {
                 assert!(
                     !should_filter,
                     "Message level {:?} should NOT be filtered when configured level is {:?}",
-                    message,
-                    configured
+                    message, configured
                 );
             }
         }

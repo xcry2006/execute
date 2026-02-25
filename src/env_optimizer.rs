@@ -17,6 +17,7 @@ use crate::config::EnvConfig;
 /// 优化的环境变量应用器
 ///
 /// 缓存环境变量配置，支持高效批量应用。
+#[allow(dead_code)]
 pub struct EnvOptimizer {
     /// 是否继承父进程环境
     inherit_parent: bool,
@@ -180,15 +181,15 @@ impl EnvCache {
 
         let mut hasher = DefaultHasher::new();
         config.inherit_parent().hash(&mut hasher);
-        
+
         let mut vars: Vec<_> = config.vars().iter().collect();
         vars.sort_by(|a, b| a.0.cmp(b.0));
-        
+
         for (key, value) in vars {
             key.hash(&mut hasher);
             value.hash(&mut hasher);
         }
-        
+
         hasher.finish()
     }
 
@@ -227,9 +228,7 @@ mod tests {
 
     #[test]
     fn test_env_optimizer_basic() {
-        let config = EnvConfig::new()
-            .set("KEY1", "value1")
-            .set("KEY2", "value2");
+        let config = EnvConfig::new().set("KEY1", "value1").set("KEY2", "value2");
 
         let optimizer = EnvOptimizer::from_config(&config);
         assert_eq!(optimizer.set_count(), 2);
@@ -238,9 +237,7 @@ mod tests {
 
     #[test]
     fn test_env_optimizer_with_remove() {
-        let config = EnvConfig::new()
-            .set("KEY1", "value1")
-            .remove("KEY2");
+        let config = EnvConfig::new().set("KEY1", "value1").remove("KEY2");
 
         let optimizer = EnvOptimizer::from_config(&config);
         assert_eq!(optimizer.set_count(), 1);
@@ -250,26 +247,24 @@ mod tests {
     #[test]
     fn test_env_cache() {
         let mut cache = EnvCache::new();
-        
+
         let config1 = EnvConfig::new().set("A", "1");
         let config2 = EnvConfig::new().set("A", "1");
-        
+
         cache.get_or_create(&config1);
         cache.get_or_create(&config2);
-        
+
         // 相同配置应该共享缓存
         assert_eq!(cache.len(), 1);
     }
 
     #[test]
     fn test_apply_fast() {
-        let config = EnvConfig::new()
-            .no_inherit()
-            .set("TEST_VAR", "test_value");
+        let config = EnvConfig::new().no_inherit().set("TEST_VAR", "test_value");
 
         let mut cmd = Command::new("echo");
         EnvOptimizer::apply_fast(&mut cmd, &config);
-        
+
         // 验证可以通过编译和执行
         // 实际环境变量验证需要运行子进程
     }

@@ -174,7 +174,7 @@ proptest! {
                         !issues.is_empty(),
                         "Degraded status should include issue descriptions"
                     );
-                    
+
                     // 验证：应该报告队列使用率高
                     prop_assert!(
                         issues.iter().any(|issue| issue.contains("Queue usage high")),
@@ -255,7 +255,7 @@ proptest! {
                     !issues.is_empty(),
                     "Unhealthy status should include issue descriptions"
                 );
-                
+
                 // 验证：应该报告没有工作线程存活
                 prop_assert!(
                     issues.iter().any(|issue| issue.contains("workers alive")),
@@ -323,14 +323,14 @@ proptest! {
                     health.details.workers_total,
                     "Healthy status requires all workers alive"
                 );
-                
+
                 // 2. 队列使用率不高（<= 0.9）
                 prop_assert!(
                     health.details.queue_usage <= 0.9,
                     "Healthy status requires queue usage <= 0.9, got {}",
                     health.details.queue_usage
                 );
-                
+
                 // 3. 没有长时间运行的任务
                 prop_assert_eq!(
                     health.details.long_running_tasks,
@@ -345,18 +345,18 @@ proptest! {
                     health.details.workers_alive > 0,
                     "Degraded status requires at least one worker alive"
                 );
-                
+
                 // 2. 应该有问题描述
                 prop_assert!(
                     !issues.is_empty(),
                     "Degraded status should include issue descriptions"
                 );
-                
+
                 // 3. 至少有一个检查未通过
                 let has_worker_issue = health.details.workers_alive < health.details.workers_total;
                 let has_queue_issue = health.details.queue_usage > 0.9;
                 let has_long_running_issue = health.details.long_running_tasks > 0;
-                
+
                 prop_assert!(
                     has_worker_issue || has_queue_issue || has_long_running_issue,
                     "Degraded status requires at least one issue"
@@ -370,13 +370,13 @@ proptest! {
                     0,
                     "Unhealthy status requires no workers alive"
                 );
-                
+
                 // 2. 应该有问题描述
                 prop_assert!(
                     !issues.is_empty(),
                     "Unhealthy status should include issue descriptions"
                 );
-                
+
                 // 3. 应该报告没有工作线程存活
                 prop_assert!(
                     issues.iter().any(|issue| issue.contains("workers alive")),
@@ -465,7 +465,11 @@ fn test_health_status_degraded_example() {
         match &health.status {
             HealthStatus::Degraded { issues } => {
                 assert!(!issues.is_empty());
-                assert!(issues.iter().any(|issue| issue.contains("Queue usage high")));
+                assert!(
+                    issues
+                        .iter()
+                        .any(|issue| issue.contains("Queue usage high"))
+                );
             }
             _ => {
                 // 可能因为任务执行很快，队列使用率已经下降

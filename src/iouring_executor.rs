@@ -9,11 +9,11 @@
 //! - 批量提交：一次提交多个操作
 //! - 零拷贝 I/O：减少数据拷贝开销
 
-use std::os::unix::process::ExitStatusExt;
+// use std::os::unix::process::ExitStatusExt;
 use std::process::{Child, ExitStatus, Output};
 use std::time::Duration;
 
-use io_uring::{opcode, types, IoUring, SubmissionQueue, CompletionQueue};
+use io_uring::{IoUring, opcode, types};
 use slab::Slab;
 
 use crate::config::CommandConfig;
@@ -43,6 +43,7 @@ enum Operation {
 }
 
 /// 执行结果
+#[allow(dead_code)]
 pub struct AsyncOutput {
     pub stdout: Vec<u8>,
     pub stderr: Vec<u8>,
@@ -60,8 +61,7 @@ impl IoUringExecutor {
     ///
     /// 成功返回执行器，失败返回错误
     pub fn new(entries: u32) -> Result<Self, ExecuteError> {
-        let ring = IoUring::new(entries)
-            .map_err(|e| ExecuteError::Io(std::io::Error::other(e)))?;
+        let ring = IoUring::new(entries).map_err(|e| ExecuteError::Io(std::io::Error::other(e)))?;
 
         Ok(Self {
             ring,
@@ -141,21 +141,28 @@ impl IoUringExecutor {
             }
             for (key, value) in env_config.vars() {
                 match value {
-                    Some(v) => { cmd.env(key, v); }
-                    None => { cmd.env_remove(key); }
+                    Some(v) => {
+                        cmd.env(key, v);
+                    }
+                    None => {
+                        cmd.env_remove(key);
+                    }
                 }
             }
         }
 
-        cmd.spawn()
-            .map_err(|e| ExecuteError::Io(e))
+        cmd.spawn().map_err(ExecuteError::Io)
     }
 
     /// 异步读取管道数据
     ///
     /// 使用 io_uring 的 read 操作异步读取数据
-    fn async_read(&mut self, pipe: &mut std::process::ChildStdout) -> Result<Vec<u8>, ExecuteError> {
+    fn async_read(
+        &mut self,
+        pipe: &mut std::process::ChildStdout,
+    ) -> Result<Vec<u8>, ExecuteError> {
         // 获取原始文件描述符
+        #[allow(unused_imports)]
         use std::os::fd::AsRawFd;
         let fd = pipe.as_raw_fd();
 
@@ -164,9 +171,9 @@ impl IoUringExecutor {
         buffer.resize(8192, 0);
 
         // 分配操作槽
-        let op_id = self.operations.insert(Operation::ReadStdout {
-            buf: buffer,
-        });
+        let op_id = self
+            .operations
+            .insert(Operation::ReadStdout { buf: buffer });
 
         // 构建 read 操作
         let buf_addr = match &self.operations[op_id] {
@@ -174,22 +181,21 @@ impl IoUringExecutor {
             _ => unreachable!(),
         };
 
-        let read_op = opcode::Read::new(
-            types::Fd(fd),
-            buf_addr as *mut u8,
-            8192,
-        ).build().user_data(op_id as u64);
+        let read_op = opcode::Read::new(types::Fd(fd), buf_addr as *mut u8, 8192)
+            .build()
+            .user_data(op_id as u64);
 
         // 提交操作
         unsafe {
-            self.ring.submission().push(&read_op)
-                .map_err(|_| ExecuteError::Io(
-                    std::io::Error::new(std::io::ErrorKind::Other, "submission queue full")
-                ))?;
+            self.ring
+                .submission()
+                .push(&read_op)
+                .map_err(|_| ExecuteError::Io(std::io::Error::other("submission queue full")))?;
         }
 
         // 提交并等待完成
-        self.ring.submit_and_wait(1)
+        self.ring
+            .submit_and_wait(1)
             .map_err(|e| ExecuteError::Io(std::io::Error::other(e)))?;
 
         // 处理完成事件
@@ -198,11 +204,9 @@ impl IoUringExecutor {
             let ret = cqe.result();
             if ret < 0 {
                 self.operations.remove(op_id);
-                return Err(ExecuteError::Io(
-                    std::io::Error::from_raw_os_error(-ret)
-                ));
+                return Err(ExecuteError::Io(std::io::Error::from_raw_os_error(-ret)));
             }
-            
+
             // 取出缓冲区
             if let Operation::ReadStdout { buf, .. } = self.operations.remove(op_id) {
                 let mut buf = buf;
@@ -220,8 +224,12 @@ impl IoUringExecutor {
     }
 
     /// 异步读取 stderr 数据
-    fn async_read_stderr(&mut self, pipe: &mut std::process::ChildStderr) -> Result<Vec<u8>, ExecuteError> {
+    fn async_read_stderr(
+        &mut self,
+        pipe: &mut std::process::ChildStderr,
+    ) -> Result<Vec<u8>, ExecuteError> {
         // 获取原始文件描述符
+        #[allow(unused_imports)]
         use std::os::fd::AsRawFd;
         let fd = pipe.as_raw_fd();
 
@@ -230,9 +238,9 @@ impl IoUringExecutor {
         buffer.resize(8192, 0);
 
         // 分配操作槽
-        let op_id = self.operations.insert(Operation::ReadStderr {
-            buf: buffer,
-        });
+        let op_id = self
+            .operations
+            .insert(Operation::ReadStderr { buf: buffer });
 
         // 构建 read 操作
         let buf_addr = match &self.operations[op_id] {
@@ -240,22 +248,21 @@ impl IoUringExecutor {
             _ => unreachable!(),
         };
 
-        let read_op = opcode::Read::new(
-            types::Fd(fd),
-            buf_addr as *mut u8,
-            8192,
-        ).build().user_data(op_id as u64);
+        let read_op = opcode::Read::new(types::Fd(fd), buf_addr as *mut u8, 8192)
+            .build()
+            .user_data(op_id as u64);
 
         // 提交操作
         unsafe {
-            self.ring.submission().push(&read_op)
-                .map_err(|_| ExecuteError::Io(
-                    std::io::Error::new(std::io::ErrorKind::Other, "submission queue full")
-                ))?;
+            self.ring
+                .submission()
+                .push(&read_op)
+                .map_err(|_| ExecuteError::Io(std::io::Error::other("submission queue full")))?;
         }
 
         // 提交并等待完成
-        self.ring.submit_and_wait(1)
+        self.ring
+            .submit_and_wait(1)
             .map_err(|e| ExecuteError::Io(std::io::Error::other(e)))?;
 
         // 处理完成事件
@@ -264,11 +271,9 @@ impl IoUringExecutor {
             let ret = cqe.result();
             if ret < 0 {
                 self.operations.remove(op_id);
-                return Err(ExecuteError::Io(
-                    std::io::Error::from_raw_os_error(-ret)
-                ));
+                return Err(ExecuteError::Io(std::io::Error::from_raw_os_error(-ret)));
             }
-            
+
             // 取出缓冲区
             if let Operation::ReadStderr { buf, .. } = self.operations.remove(op_id) {
                 let mut buf = buf;
@@ -293,6 +298,7 @@ impl IoUringExecutor {
         child: &mut Child,
         timeout: Option<Duration>,
     ) -> Result<ExitStatus, ExecuteError> {
+        #[allow(unused_imports)]
         use std::os::fd::AsRawFd;
 
         // 使用 wait-timeout 作为后备方案
@@ -300,8 +306,10 @@ impl IoUringExecutor {
         match timeout {
             Some(t) => {
                 use wait_timeout::ChildExt;
-                match child.wait_timeout(t)
-                    .map_err(|e| ExecuteError::Io(std::io::Error::other(e)))? {
+                match child
+                    .wait_timeout(t)
+                    .map_err(|e| ExecuteError::Io(std::io::Error::other(e)))?
+                {
                     Some(status) => Ok(status),
                     None => {
                         let _ = child.kill();
@@ -310,19 +318,19 @@ impl IoUringExecutor {
                     }
                 }
             }
-            None => {
-                child.wait()
-                    .map_err(|e| ExecuteError::Io(e))
-            }
+            None => child.wait().map_err(ExecuteError::Io),
         }
     }
 
     /// 分配缓冲区
     fn alloc_buffer(&mut self) -> Vec<u8> {
-        self.buffers.pop().unwrap_or_else(|| Vec::with_capacity(8192))
+        self.buffers
+            .pop()
+            .unwrap_or_else(|| Vec::with_capacity(8192))
     }
 
     /// 回收缓冲区
+    #[allow(dead_code)]
     fn recycle_buffer(&mut self, buf: Vec<u8>) {
         if self.buffers.len() < 64 {
             self.buffers.push(buf);
@@ -333,20 +341,17 @@ impl IoUringExecutor {
 /// 批量执行命令
 ///
 /// 使用 io_uring 批量提交多个命令，减少系统调用次数
-pub fn execute_batch_iouring(
-    configs: &[CommandConfig],
-) -> Vec<Result<Output, ExecuteError>> {
+pub fn execute_batch_iouring(configs: &[CommandConfig]) -> Vec<Result<Output, ExecuteError>> {
     let mut executor = match IoUringExecutor::new(configs.len() as u32 * 2) {
         Ok(e) => e,
         Err(_) => {
             // io_uring 不可用，回退到标准实现
-            return configs.iter()
-                .map(|c| execute_command(c))
-                .collect();
+            return configs.iter().map(execute_command).collect();
         }
     };
 
-    configs.iter()
+    configs
+        .iter()
         .map(|config| executor.execute(config))
         .collect()
 }

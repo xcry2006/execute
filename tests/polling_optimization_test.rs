@@ -135,7 +135,7 @@ fn test_task_execution_latency_is_low() {
 // ============================================================================
 
 /// Test task execution latency (Requirement 6.4)
-/// 
+///
 /// Verifies that the system maintains low task execution latency
 /// when using condition variables instead of polling.
 #[test]
@@ -155,17 +155,17 @@ fn test_task_execution_latency_with_condition_variables() {
         let start = Instant::now();
         let config = CommandConfig::new("echo", vec![format!("latency-test-{}", i)]);
         pool.push_task(config).unwrap();
-        
+
         // 等待任务执行完成
         thread::sleep(Duration::from_millis(150));
-        
+
         let latency = start.elapsed();
         latencies.push(latency);
     }
 
     // 计算平均延迟
     let avg_latency = latencies.iter().sum::<Duration>() / num_tasks as u32;
-    
+
     // 验证平均延迟在合理范围内（应该小于 500ms）
     // 使用条件变量，工作线程应该立即被唤醒
     assert!(
@@ -186,7 +186,7 @@ fn test_task_execution_latency_with_condition_variables() {
 }
 
 /// Test concurrent task execution latency (Requirement 6.4)
-/// 
+///
 /// Verifies that multiple tasks can be executed concurrently with low latency.
 #[test]
 fn test_concurrent_task_execution_latency() {
@@ -201,7 +201,7 @@ fn test_concurrent_task_execution_latency() {
     // 同时提交多个任务并测量总时间
     let start = Instant::now();
     let num_tasks = 8;
-    
+
     for i in 0..num_tasks {
         let config = CommandConfig::new("echo", vec![format!("concurrent-{}", i)]);
         pool.push_task(config).unwrap();
@@ -224,7 +224,7 @@ fn test_concurrent_task_execution_latency() {
 }
 
 /// Test idle CPU usage (Requirement 6.5)
-/// 
+///
 /// Verifies that the system has low CPU usage when idle (no tasks).
 /// This test uses a heuristic approach since precise CPU measurement is platform-specific.
 #[test]
@@ -239,15 +239,15 @@ fn test_idle_cpu_usage_is_low() {
     // 测量空闲期间的响应性
     // 如果工作线程在轮询，它们会持续消耗 CPU
     // 如果使用条件变量，它们应该处于休眠状态
-    
+
     // 提交一个任务来验证工作线程仍然响应
     let start = Instant::now();
     let config = CommandConfig::new("echo", vec!["idle-test".to_string()]);
     pool.push_task(config).unwrap();
-    
+
     // 等待任务执行
     thread::sleep(Duration::from_millis(150));
-    
+
     let response_time = start.elapsed();
 
     // 验证工作线程能够快速响应（说明它们在等待而不是忙轮询）
@@ -262,7 +262,7 @@ fn test_idle_cpu_usage_is_low() {
 }
 
 /// Test CPU usage during idle period with multiple workers (Requirement 6.5)
-/// 
+///
 /// Verifies that multiple idle workers don't cause high CPU usage.
 #[test]
 fn test_multiple_idle_workers_low_cpu() {
@@ -277,7 +277,7 @@ fn test_multiple_idle_workers_low_cpu() {
     // 在空闲期间，所有工作线程应该在条件变量上等待
     // 提交任务来验证它们仍然响应
     let start = Instant::now();
-    
+
     for i in 0..8 {
         let config = CommandConfig::new("echo", vec![format!("multi-idle-{}", i)]);
         pool.push_task(config).unwrap();
@@ -285,7 +285,7 @@ fn test_multiple_idle_workers_low_cpu() {
 
     // 等待任务执行
     thread::sleep(Duration::from_millis(500));
-    
+
     let total_time = start.elapsed();
 
     // 验证所有工作线程能够快速响应
@@ -299,7 +299,7 @@ fn test_multiple_idle_workers_low_cpu() {
 }
 
 /// Test wake-up latency from idle state (Requirement 6.4 & 6.5)
-/// 
+///
 /// Measures how quickly a worker wakes up from idle state when a task arrives.
 #[test]
 fn test_worker_wakeup_latency() {
@@ -317,15 +317,15 @@ fn test_worker_wakeup_latency() {
     for i in 0..num_iterations {
         // 确保工作线程处于空闲状态
         thread::sleep(Duration::from_millis(100));
-        
+
         // 测量从提交任务到任务开始执行的时间
         let start = Instant::now();
         let config = CommandConfig::new("echo", vec![format!("wakeup-{}", i)]);
         pool.push_task(config).unwrap();
-        
+
         // 等待任务执行
         thread::sleep(Duration::from_millis(100));
-        
+
         let wakeup_time = start.elapsed();
         wakeup_times.push(wakeup_time);
     }
@@ -344,7 +344,7 @@ fn test_worker_wakeup_latency() {
 }
 
 /// Test sustained throughput with condition variables (Requirement 6.4)
-/// 
+///
 /// Verifies that the system can maintain good throughput over time.
 #[test]
 fn test_sustained_throughput() {
@@ -359,7 +359,7 @@ fn test_sustained_throughput() {
     // 持续提交任务并测量吞吐量
     let start = Instant::now();
     let num_tasks = 50;
-    
+
     for i in 0..num_tasks {
         let config = CommandConfig::new("echo", vec![format!("throughput-{}", i)]);
         pool.push_task(config).unwrap();
@@ -384,7 +384,7 @@ fn test_sustained_throughput() {
 }
 
 /// Linux-specific test to measure actual CPU usage (Requirement 6.5)
-/// 
+///
 /// This test reads /proc/stat to measure CPU usage during idle periods.
 #[cfg(target_os = "linux")]
 #[test]
@@ -396,7 +396,7 @@ fn test_actual_cpu_usage_when_idle() {
     fn read_cpu_stats() -> Option<(u64, u64)> {
         let file = File::open("/proc/stat").ok()?;
         let reader = BufReader::new(file);
-        
+
         for line in reader.lines() {
             let line = line.ok()?;
             if line.starts_with("cpu ") {
@@ -406,7 +406,7 @@ fn test_actual_cpu_usage_when_idle() {
                     let nice: u64 = parts[2].parse().ok()?;
                     let system: u64 = parts[3].parse().ok()?;
                     let idle: u64 = parts[4].parse().ok()?;
-                    
+
                     let total = user + nice + system + idle;
                     let active = user + nice + system;
                     return Some((active, total));
@@ -425,20 +425,18 @@ fn test_actual_cpu_usage_when_idle() {
     thread::sleep(Duration::from_millis(200));
 
     // 读取初始 CPU 统计
-    let (active_before, total_before) = read_cpu_stats()
-        .expect("Failed to read CPU stats");
+    let (active_before, total_before) = read_cpu_stats().expect("Failed to read CPU stats");
 
     // 让系统空闲一段时间
     thread::sleep(Duration::from_secs(2));
 
     // 读取最终 CPU 统计
-    let (active_after, total_after) = read_cpu_stats()
-        .expect("Failed to read CPU stats");
+    let (active_after, total_after) = read_cpu_stats().expect("Failed to read CPU stats");
 
     // 计算 CPU 使用率
     let active_diff = active_after.saturating_sub(active_before);
     let total_diff = total_after.saturating_sub(total_before);
-    
+
     let cpu_usage = if total_diff > 0 {
         (active_diff as f64 / total_diff as f64) * 100.0
     } else {
@@ -459,7 +457,7 @@ fn test_actual_cpu_usage_when_idle() {
 }
 
 /// Test that condition variable notification works correctly (Requirement 6.5)
-/// 
+///
 /// Verifies that workers are properly notified when tasks arrive.
 #[test]
 fn test_condition_variable_notification() {

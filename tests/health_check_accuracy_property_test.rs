@@ -332,7 +332,9 @@ fn test_health_check_accuracy_queue_full() {
     match &health.status {
         HealthStatus::Degraded { issues } | HealthStatus::Unhealthy { issues } => {
             assert!(
-                issues.iter().any(|issue| issue.contains("Queue usage high")),
+                issues
+                    .iter()
+                    .any(|issue| issue.contains("Queue usage high")),
                 "Should report high queue usage when queue is full"
             );
         }

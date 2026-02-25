@@ -138,7 +138,7 @@ proptest! {
                 Duration::from_millis(1),
                 max / 100
             );
-            
+
             prop_assert!(
                 min <= p50,
                 "Min ({:?}) should be <= P50 ({:?})",
@@ -454,7 +454,7 @@ fn test_execution_time_stats_percentiles_ordering() {
     // Allow tolerance for p99 vs max due to histogram precision
     let tolerance = std::cmp::max(
         Duration::from_millis(1),
-        final_metrics.max_execution_time / 100
+        final_metrics.max_execution_time / 100,
     );
     assert!(
         final_metrics.p99_execution_time <= final_metrics.max_execution_time + tolerance,

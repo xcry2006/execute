@@ -2,9 +2,9 @@ use std::collections::VecDeque;
 use std::sync::atomic::{AtomicBool, AtomicU64, Ordering};
 use std::sync::{Arc, Condvar, Mutex};
 use std::thread::{self, JoinHandle};
-use std::time::{Duration, Instant};
 #[cfg(feature = "health")]
 use std::time::SystemTime;
+use std::time::{Duration, Instant};
 
 use crate::backend::{BackendFactory, ExecutionBackend, ExecutionConfig, ExecutionMode};
 use crate::config::{CommandConfig, ShutdownConfig};

@@ -9,7 +9,7 @@
 // - 需求 12.4: 命令执行超过执行超时时，终止进程并返回超时错误
 // - 需求 12.5: 错误信息中区分启动超时和执行超时
 
-use execute::{execute_with_timeouts, CommandConfig, CommandError, TimeoutConfig};
+use execute::{CommandConfig, CommandError, TimeoutConfig, execute_with_timeouts};
 use proptest::prelude::*;
 use std::time::{Duration, Instant};
 
@@ -26,7 +26,7 @@ fn spawn_timeout_strategy() -> impl Strategy<Value = (String, Vec<String>, Durat
             "sleep".to_string(),
             vec!["0.1".to_string()],
             Duration::from_nanos(1), // 极短的启动超时
-            Duration::from_secs(10),  // 足够长的执行超时
+            Duration::from_secs(10), // 足够长的执行超时
         )),
         Just((
             "echo".to_string(),
@@ -49,8 +49,8 @@ fn execution_timeout_strategy() -> impl Strategy<Value = (String, Vec<String>, D
         Just((
             "sleep".to_string(),
             vec!["10".to_string()],
-            Duration::from_secs(5),      // 足够长的启动超时
-            Duration::from_millis(50),   // 很短的执行超时
+            Duration::from_secs(5),    // 足够长的启动超时
+            Duration::from_millis(50), // 很短的执行超时
         )),
         Just((
             "sleep".to_string(),
@@ -288,8 +288,7 @@ fn test_execution_timeout_distinction() {
         .with_spawn_timeout(Duration::from_secs(5))
         .with_execution_timeout(exec_timeout);
 
-    let config =
-        CommandConfig::new("sleep", vec!["10".to_string()]).with_timeouts(timeout_config);
+    let config = CommandConfig::new("sleep", vec!["10".to_string()]).with_timeouts(timeout_config);
     let task_id = 42;
 
     let start = Instant::now();
@@ -312,14 +311,15 @@ fn test_spawn_timeout_distinction() {
         .with_spawn_timeout(spawn_timeout)
         .with_execution_timeout(Duration::from_secs(10));
 
-    let config =
-        CommandConfig::new("sleep", vec!["0.1".to_string()]).with_timeouts(timeout_config);
+    let config = CommandConfig::new("sleep", vec!["0.1".to_string()]).with_timeouts(timeout_config);
     let task_id = 123;
 
     let result = execute_with_timeouts(&config, task_id);
 
     // 如果触发了超时，验证是启动超时
-    if let Err(error) = result && matches!(error, CommandError::Timeout { .. }) {
+    if let Err(error) = result
+        && matches!(error, CommandError::Timeout { .. })
+    {
         verify_spawn_timeout(&error, task_id, "sleep", spawn_timeout);
     }
 }
@@ -336,15 +336,13 @@ fn test_timeout_type_from_configured_value() {
         .with_spawn_timeout(Duration::from_secs(5))
         .with_execution_timeout(exec_timeout);
 
-    let config =
-        CommandConfig::new("sleep", vec!["10".to_string()]).with_timeouts(timeout_config);
+    let config = CommandConfig::new("sleep", vec!["10".to_string()]).with_timeouts(timeout_config);
 
     let result = execute_with_timeouts(&config, 1);
     assert!(result.is_err());
 
     if let Err(CommandError::Timeout {
-        configured_timeout,
-        ..
+        configured_timeout, ..
     }) = result
     {
         // 配置的超时值应该是执行超时
@@ -359,14 +357,12 @@ fn test_timeout_type_from_configured_value() {
         .with_spawn_timeout(spawn_timeout)
         .with_execution_timeout(Duration::from_secs(10));
 
-    let config =
-        CommandConfig::new("echo", vec!["test".to_string()]).with_timeouts(timeout_config);
+    let config = CommandConfig::new("echo", vec!["test".to_string()]).with_timeouts(timeout_config);
 
     let result = execute_with_timeouts(&config, 2);
 
     if let Err(CommandError::Timeout {
-        configured_timeout,
-        ..
+        configured_timeout, ..
     }) = result
     {
         // 配置的超时值应该是启动超时
@@ -386,8 +382,7 @@ fn test_timeout_distinction_by_duration() {
         .with_spawn_timeout(Duration::from_secs(5))
         .with_execution_timeout(exec_timeout);
 
-    let config =
-        CommandConfig::new("sleep", vec!["10".to_string()]).with_timeouts(timeout_config);
+    let config = CommandConfig::new("sleep", vec!["10".to_string()]).with_timeouts(timeout_config);
 
     let start = Instant::now();
     let result = execute_with_timeouts(&config, 1);
@@ -425,15 +420,13 @@ fn test_only_execution_timeout_set() {
     let exec_timeout = Duration::from_millis(50);
     let timeout_config = TimeoutConfig::new().with_execution_timeout(exec_timeout);
 
-    let config =
-        CommandConfig::new("sleep", vec!["10".to_string()]).with_timeouts(timeout_config);
+    let config = CommandConfig::new("sleep", vec!["10".to_string()]).with_timeouts(timeout_config);
 
     let result = execute_with_timeouts(&config, 1);
     assert!(result.is_err());
 
     if let Err(CommandError::Timeout {
-        configured_timeout,
-        ..
+        configured_timeout, ..
     }) = result
     {
         assert_eq!(
@@ -450,8 +443,7 @@ fn test_only_spawn_timeout_set() {
     let spawn_timeout = Duration::from_nanos(1);
     let timeout_config = TimeoutConfig::new().with_spawn_timeout(spawn_timeout);
 
-    let config =
-        CommandConfig::new("echo", vec!["test".to_string()]).with_timeouts(timeout_config);
+    let config = CommandConfig::new("echo", vec!["test".to_string()]).with_timeouts(timeout_config);
 
     let result = execute_with_timeouts(&config, 1);
 

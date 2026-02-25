@@ -18,7 +18,7 @@ use std::env;
 /// - 长度在 1-50 之间
 fn env_var_name_strategy() -> impl Strategy<Value = String> {
     use proptest::char;
-    
+
     // 第一个字符：字母或下划线
     let first_char = prop_oneof![
         char::range('A', 'Z').prop_map(|c| c.to_string()),
@@ -44,7 +44,7 @@ fn env_var_name_strategy() -> impl Strategy<Value = String> {
 /// 生成环境变量值策略
 fn env_var_value_strategy() -> impl Strategy<Value = String> {
     use proptest::char;
-    
+
     prop::collection::vec(
         prop_oneof![
             char::range('a', 'z'),
@@ -315,8 +315,8 @@ fn test_clear_single_env_var() {
     // 创建配置清除该变量
     let env_config = EnvConfig::new().remove("TEST_CLEAR_VAR");
 
-    let config = CommandConfig::new("printenv", vec!["TEST_CLEAR_VAR".to_string()])
-        .with_env(env_config);
+    let config =
+        CommandConfig::new("printenv", vec!["TEST_CLEAR_VAR".to_string()]).with_env(env_config);
 
     let result = execute::execute_with_retry(&config, 1);
 
@@ -362,8 +362,8 @@ fn test_clear_multiple_env_vars() {
 
     // 验证每个变量都被清除
     for var_name in ["CLEAR_VAR1", "CLEAR_VAR2", "CLEAR_VAR3"] {
-        let config = CommandConfig::new("printenv", vec![var_name.to_string()])
-            .with_env(env_config.clone());
+        let config =
+            CommandConfig::new("printenv", vec![var_name.to_string()]).with_env(env_config.clone());
 
         let result = execute::execute_with_retry(&config, 2);
 
@@ -428,8 +428,8 @@ fn test_clear_and_set_different_vars() {
     }
 
     // 验证设置的变量可以访问
-    let config_set = CommandConfig::new("printenv", vec!["VAR_TO_SET".to_string()])
-        .with_env(env_config);
+    let config_set =
+        CommandConfig::new("printenv", vec!["VAR_TO_SET".to_string()]).with_env(env_config);
 
     let result_set = execute::execute_with_retry(&config_set, 4);
 
@@ -438,7 +438,8 @@ fn test_clear_and_set_different_vars() {
     assert!(output_set.status.success(), "Exit status should be success");
 
     let actual_value = String::from_utf8_lossy(&output_set.stdout);
-    let actual_value = actual_value.strip_suffix('\n')
+    let actual_value = actual_value
+        .strip_suffix('\n')
         .or_else(|| actual_value.strip_suffix("\r\n"))
         .unwrap_or(&actual_value);
     assert_eq!(actual_value, "new_value");
@@ -461,8 +462,8 @@ fn test_clear_nonexistent_var() {
     // 创建配置清除不存在的变量
     let env_config = EnvConfig::new().remove("NONEXISTENT_VAR");
 
-    let config = CommandConfig::new("printenv", vec!["NONEXISTENT_VAR".to_string()])
-        .with_env(env_config);
+    let config =
+        CommandConfig::new("printenv", vec!["NONEXISTENT_VAR".to_string()]).with_env(env_config);
 
     let result = execute::execute_with_retry(&config, 5);
 
@@ -494,12 +495,9 @@ fn test_clear_with_no_inherit() {
     }
 
     // 创建配置：不继承父进程环境变量，并清除该变量
-    let env_config = EnvConfig::new()
-        .no_inherit()
-        .remove("TEST_VAR");
+    let env_config = EnvConfig::new().no_inherit().remove("TEST_VAR");
 
-    let config = CommandConfig::new("printenv", vec!["TEST_VAR".to_string()])
-        .with_env(env_config);
+    let config = CommandConfig::new("printenv", vec!["TEST_VAR".to_string()]).with_env(env_config);
 
     let result = execute::execute_with_retry(&config, 6);
 
@@ -538,8 +536,8 @@ fn test_clear_path_like_var() {
     // 创建配置清除该变量
     let env_config = EnvConfig::new().remove("TEST_PATH_VAR");
 
-    let config = CommandConfig::new("printenv", vec!["TEST_PATH_VAR".to_string()])
-        .with_env(env_config);
+    let config =
+        CommandConfig::new("printenv", vec!["TEST_PATH_VAR".to_string()]).with_env(env_config);
 
     let result = execute::execute_with_retry(&config, 7);
 

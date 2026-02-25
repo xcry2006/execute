@@ -76,7 +76,7 @@ proptest! {
 
         // 提交任务
         let mut handles = Vec::new();
-        
+
         // 提交成功任务
         for i in 0..success_count {
             let config = CommandConfig::new("echo", vec![format!("success_{}", i)]);
@@ -85,7 +85,7 @@ proptest! {
                 Err(_) => break,
             }
         }
-        
+
         // 提交失败任务
         for i in 0..failure_count {
             let config = CommandConfig::new("nonexistent_command_xyz", vec![format!("{}", i)]);
@@ -296,7 +296,10 @@ fn test_success_rate_zero_tasks() {
     let metrics = pool.metrics();
 
     // 验证成功率为 0.0（没有任务时）
-    assert_eq!(metrics.success_rate, 0.0, "Success rate should be 0.0 when no tasks submitted");
+    assert_eq!(
+        metrics.success_rate, 0.0,
+        "Success rate should be 0.0 when no tasks submitted"
+    );
     assert_eq!(metrics.tasks_submitted, 0);
     assert_eq!(metrics.tasks_completed, 0);
     assert_eq!(metrics.tasks_failed, 0);
@@ -327,7 +330,10 @@ fn test_success_rate_single_success() {
 
     // 验证成功率为 1.0
     let metrics = pool.metrics();
-    assert_eq!(metrics.success_rate, 1.0, "Success rate should be 1.0 for single successful task");
+    assert_eq!(
+        metrics.success_rate, 1.0,
+        "Success rate should be 1.0 for single successful task"
+    );
     assert_eq!(metrics.tasks_submitted, 1);
     assert_eq!(metrics.tasks_completed, 1);
     assert_eq!(metrics.tasks_failed, 0);
@@ -358,7 +364,10 @@ fn test_success_rate_single_failure() {
 
     // 验证成功率为 0.0
     let metrics = pool.metrics();
-    assert_eq!(metrics.success_rate, 0.0, "Success rate should be 0.0 for single failed task");
+    assert_eq!(
+        metrics.success_rate, 0.0,
+        "Success rate should be 0.0 for single failed task"
+    );
     assert_eq!(metrics.tasks_submitted, 1);
     assert_eq!(metrics.tasks_completed, 0);
     assert_eq!(metrics.tasks_failed, 1);
@@ -381,13 +390,13 @@ fn test_success_rate_mixed_tasks() {
 
     // 提交混合任务：3个成功，2个失败
     let mut handles = Vec::new();
-    
+
     // 3个成功任务
     for i in 0..3 {
         let config = CommandConfig::new("echo", vec![format!("success_{}", i)]);
         handles.push(pool.push_task(config).expect("Failed to submit task"));
     }
-    
+
     // 2个失败任务
     for i in 0..2 {
         let config = CommandConfig::new("nonexistent_command_xyz", vec![format!("{}", i)]);
@@ -439,7 +448,10 @@ fn test_success_rate_incremental_updates() {
 
     // 验证成功率为 1.0
     let metrics1 = pool.metrics();
-    assert_eq!(metrics1.success_rate, 1.0, "Success rate should be 1.0 after first success");
+    assert_eq!(
+        metrics1.success_rate, 1.0,
+        "Success rate should be 1.0 after first success"
+    );
 
     // 提交第二个失败任务
     let config2 = CommandConfig::new("nonexistent_command_xyz", vec![]);

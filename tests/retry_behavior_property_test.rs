@@ -74,7 +74,7 @@ proptest! {
         // 验证执行时间
         // 总尝试次数 = 初始尝试 + 重试次数
         let total_attempts = retry_policy.max_attempts + 1;
-        
+
         // 最小执行时间 = 总尝试次数 * 超时时间 + 重试次数 * 重试延迟
         // 允许一些误差（-5ms）因为系统调度可能导致轻微的时间差异
         let min_expected_time = timeout.saturating_sub(Duration::from_millis(5)) * total_attempts as u32

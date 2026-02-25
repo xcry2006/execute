@@ -72,7 +72,7 @@ proptest! {
 
         for _ in 0..new_task_count {
             let result = pool.push_task(CommandConfig::new("echo", vec!["after_shutdown".to_string()]));
-            
+
             match result {
                 Err(SubmitError::ShuttingDown) => {
                     rejection_count += 1;
@@ -205,7 +205,7 @@ fn test_shutdown_rejects_multiple_tasks() {
     // 尝试提交多个任务
     for i in 0..10 {
         let result = pool.push_task(CommandConfig::new("echo", vec![format!("task_{}", i)]));
-        
+
         assert!(
             matches!(result, Err(SubmitError::ShuttingDown)),
             "Task {} submission should fail with ShuttingDown error",

@@ -103,7 +103,7 @@ pub fn execute_parallel_batch(
     cmd.arg("-c").arg(&script);
     cmd.stdout(Stdio::piped()).stderr(Stdio::piped());
 
-    let mut child = cmd.spawn().map_err(|e| ExecuteError::Io(e))?;
+    let mut child = cmd.spawn().map_err(ExecuteError::Io)?;
 
     // 处理超时
     let output = match batch_config.timeout {
@@ -113,7 +113,7 @@ pub fn execute_parallel_batch(
                 .wait_timeout(timeout)
                 .map_err(|e| ExecuteError::Io(std::io::Error::other(e)))?
             {
-                Some(_) => child.wait_with_output().map_err(|e| ExecuteError::Io(e))?,
+                Some(_) => child.wait_with_output().map_err(ExecuteError::Io)?,
                 None => {
                     let _ = child.kill();
                     let _ = child.wait();
@@ -121,7 +121,7 @@ pub fn execute_parallel_batch(
                 }
             }
         }
-        None => child.wait_with_output().map_err(|e| ExecuteError::Io(e))?,
+        None => child.wait_with_output().map_err(ExecuteError::Io)?,
     };
 
     // 解析单独输出（如果启用了分隔）
@@ -141,17 +141,14 @@ pub fn execute_parallel_batch(
 
 /// 构建并行执行的 shell 脚本
 fn build_parallel_script(configs: &[CommandConfig], batch_config: &BatchConfig) -> String {
-    let mut lines = Vec::new();
-
-    // 添加 shebang 和严格模式
-    lines.push("#!/bin/sh".to_string());
-    lines.push("set -e".to_string());
-    lines.push(String::new());
-
-    // 创建临时目录存放输出
-    lines.push("_batch_tmpdir=$(mktemp -d)".to_string());
-    lines.push("trap 'rm -rf \"$_batch_tmpdir\"' EXIT".to_string());
-    lines.push(String::new());
+    let mut lines = vec![
+        "#!/bin/sh".to_string(),
+        "set -e".to_string(),
+        String::new(),
+        "_batch_tmpdir=$(mktemp -d)".to_string(),
+        "trap 'rm -rf \"$_batch_tmpdir\"' EXIT".to_string(),
+        String::new(),
+    ];
 
     // 生成命令
     for (i, config) in configs.iter().enumerate() {
@@ -199,7 +196,9 @@ fn format_command(config: &CommandConfig) -> String {
 
 /// 简单的 shell 转义
 fn shell_escape(s: &str) -> String {
-    if s.chars().all(|c| c.is_alphanumeric() || "_-./=:@".contains(c)) {
+    if s.chars()
+        .all(|c| c.is_alphanumeric() || "_-./=:@".contains(c))
+    {
         s.to_string()
     } else {
         format!("'{}'", s.replace('\'', "'\"'\"'"))
@@ -264,7 +263,7 @@ pub fn execute_sequential_batch(
         .arg("-c")
         .arg(&script)
         .output()
-        .map_err(|e| ExecuteError::Io(e))?;
+        .map_err(ExecuteError::Io)?;
 
     Ok(output)
 }
@@ -283,7 +282,7 @@ pub fn execute_batch_detailed(
                 .arg("-c")
                 .arg(&cmd_str)
                 .output()
-                .map_err(|e| ExecuteError::Io(e))?;
+                .map_err(ExecuteError::Io)?;
 
             Ok(IndividualOutput {
                 stdout: String::from_utf8_lossy(&output.stdout).to_string(),

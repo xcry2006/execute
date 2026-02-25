@@ -7,7 +7,7 @@
 // 验证需求：
 // - 需求 8.4: WHEN 任务内存使用超过限制时，THE System SHALL 终止任务并返回错误
 
-use execute::{execute_command_with_context, CommandConfig, ResourceLimits};
+use execute::{CommandConfig, ResourceLimits, execute_command_with_context};
 use proptest::prelude::*;
 use std::time::Duration;
 

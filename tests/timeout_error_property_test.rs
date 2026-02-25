@@ -19,14 +19,42 @@ use std::time::Duration;
 fn timeout_command_strategy() -> impl Strategy<Value = (String, Vec<String>, Duration)> {
     prop_oneof![
         // sleep 命令，执行时间远超超时时间
-        Just(("sleep".to_string(), vec!["10".to_string()], Duration::from_millis(50))),
-        Just(("sleep".to_string(), vec!["5".to_string()], Duration::from_millis(100))),
-        Just(("sleep".to_string(), vec!["3".to_string()], Duration::from_millis(80))),
-        Just(("sleep".to_string(), vec!["2".to_string()], Duration::from_millis(60))),
+        Just((
+            "sleep".to_string(),
+            vec!["10".to_string()],
+            Duration::from_millis(50)
+        )),
+        Just((
+            "sleep".to_string(),
+            vec!["5".to_string()],
+            Duration::from_millis(100)
+        )),
+        Just((
+            "sleep".to_string(),
+            vec!["3".to_string()],
+            Duration::from_millis(80)
+        )),
+        Just((
+            "sleep".to_string(),
+            vec!["2".to_string()],
+            Duration::from_millis(60)
+        )),
         // 不同的超时值
-        Just(("sleep".to_string(), vec!["10".to_string()], Duration::from_millis(30))),
-        Just(("sleep".to_string(), vec!["10".to_string()], Duration::from_millis(70))),
-        Just(("sleep".to_string(), vec!["10".to_string()], Duration::from_millis(120))),
+        Just((
+            "sleep".to_string(),
+            vec!["10".to_string()],
+            Duration::from_millis(30)
+        )),
+        Just((
+            "sleep".to_string(),
+            vec!["10".to_string()],
+            Duration::from_millis(70)
+        )),
+        Just((
+            "sleep".to_string(),
+            vec!["10".to_string()],
+            Duration::from_millis(120)
+        )),
     ]
 }
 

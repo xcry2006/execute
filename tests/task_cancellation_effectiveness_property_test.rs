@@ -9,7 +9,9 @@
 // - 需求 13.4: cancel() 被调用且任务正在执行时，系统应终止执行进程
 // - 需求 13.5: 任务被取消时，系统应返回 Cancelled 错误
 
-use execute::{CommandConfig, CommandPool, ExecuteError, ExecutionConfig, ExecutionMode, TaskState};
+use execute::{
+    CommandConfig, CommandPool, ExecuteError, ExecutionConfig, ExecutionMode, TaskState,
+};
 use proptest::prelude::*;
 use std::time::Duration;
 
@@ -135,10 +137,10 @@ proptest! {
 
         // 此时任务应该正在执行
         let _state_before_cancel = handle.state();
-        
+
         // 取消任务
         let cancel_result = handle.cancel();
-        
+
         // 取消可能成功或失败（如果任务已完成）
         match cancel_result {
             Ok(()) => {
@@ -226,7 +228,7 @@ proptest! {
                 // 等待结果
                 let result = handle.wait();
                 prop_assert!(result.is_err(), "Cancelled task should return error");
-                
+
                 // 验证返回 Cancelled 错误（需求 13.5）
                 match result {
                     Err(ExecuteError::Cancelled(_)) => {
@@ -470,8 +472,14 @@ fn test_multiple_tasks_cancel_independence() {
     let result3 = handle3.wait();
 
     // 第一个和第三个任务应该成功
-    assert!(result1.is_ok() || result1.is_err(), "Task 1 should complete");
-    assert!(result3.is_ok() || result3.is_err(), "Task 3 should complete");
+    assert!(
+        result1.is_ok() || result1.is_err(),
+        "Task 1 should complete"
+    );
+    assert!(
+        result3.is_ok() || result3.is_err(),
+        "Task 3 should complete"
+    );
 
     // 第二个任务应该被取消
     if handle2.is_cancelled() {
