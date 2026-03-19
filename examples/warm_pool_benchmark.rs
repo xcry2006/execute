@@ -1,6 +1,18 @@
 //! 进程池预热性能测试
 //!
-//! 对比预热与非预热的执行性能。
+//! 通过对比预热与非预热两种方式的执行性能，展示进程池预热的优势。
+//!
+//! ## 测试内容
+//! - echo 命令：测试简单命令的预热效果
+//! - true 命令：测试快速命令的预热效果
+//! - 执行器对比：标准执行器 vs 预热执行器
+//! - 预热数量：不同预热进程数对性能的影响
+//! - 稳定性测试：长时间运行的可靠性验证
+//!
+//! ## 运行方式
+//! ```bash
+//! cargo run --example warm_pool_benchmark
+//! ```
 
 use execute::{CommandConfig, WarmExecutor, WarmProcessPool};
 use std::time::Instant;
@@ -26,12 +38,15 @@ fn main() {
     println!("\n=== 测试完成 ===");
 }
 
+/// 测试 echo 命令的预热效果
+///
+/// 对比直接执行与预热后执行的性能差异。
 fn test_echo_warmup() {
     println!("【测试 1】echo 命令预热效果");
     let config = CommandConfig::new("echo", vec!["hello".to_string()]);
     let count = 10;
 
-    // 非预热执行
+    // 非预热执行：每次都创建新进程
     let start = Instant::now();
     for _ in 0..count {
         let output = std::process::Command::new("echo")
@@ -42,7 +57,7 @@ fn test_echo_warmup() {
     }
     let no_warm_time = start.elapsed();
 
-    // 预热执行
+    // 预热执行：预先创建进程池
     let pool = WarmProcessPool::new(4, std::time::Duration::from_secs(60));
     pool.warm_up(&config, 2).unwrap();
 
@@ -54,10 +69,10 @@ fn test_echo_warmup() {
     }
     let warm_time = start.elapsed();
 
-    println!("  非预热执行: {:?}", no_warm_time);
-    println!("  预热执行:   {:?}", warm_time);
+    println!("  非预热执行：{:?}", no_warm_time);
+    println!("  预热执行：  {:?}", warm_time);
     println!(
-        "  加速比: {:.2}x\n",
+        "  加速比：{:.2}x\n",
         no_warm_time.as_secs_f64() / warm_time.as_secs_f64()
     );
 }

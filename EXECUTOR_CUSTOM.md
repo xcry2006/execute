@@ -1,25 +1,27 @@
-# 高级功能指南 | Advanced Features Guide
+# 高级功能指南
 
-本文档详细介绍 execute 库的高级功能，包括自定义执行器、健康检查、重试机制、超时控制、环境变量、钩子系统、僵尸进程清理等。
+本文档详细介绍 execute 库的高级功能，包括自定义执行器、健康检查、重试机制、超时控制等。
 
 ## 目录
 
-1. [自定义执行器](#自定义执行器--custom-executor)
-2. [健康检查](#健康检查--health-check)
-3. [重试机制](#重试机制--retry-mechanism)
-4. [分离超时控制](#分离超时控制--separated-timeout)
-5. [环境变量配置](#环境变量配置--environment-variables)
-6. [钩子系统](#钩子系统--execution-hooks)
-7. [僵尸进程清理](#僵尸进程清理--zombie-reaper)
-8. [指标收集](#指标收集--metrics)
-9. [任务取消](#任务取消--task-cancellation)
-10. [资源限制](#资源限制--resource-limits)
+1. [自定义执行器](#自定义执行器)
+2. [健康检查](#健康检查)
+3. [重试机制](#重试机制)
+4. [超时控制](#超时控制)
+5. [环境变量](#环境变量)
+6. [钩子系统](#钩子系统)
+7. [僵尸进程清理](#僵尸进程清理)
+8. [指标收集](#指标收集)
+9. [任务取消](#任务取消)
+10. [资源限制](#资源限制)
 
 ---
 
-## 自定义执行器 | Custom Executor
+## 自定义执行器
 
-`CommandExecutor` trait 定义了命令执行的标准接口，允许用户实现自己的执行策略：
+`CommandExecutor` trait 允许你实现自己的命令执行逻辑，比如集成异步运行时（Tokio）或添加自定义行为。
+
+### 基本接口
 
 ```rust
 pub trait CommandExecutor: Send + Sync {
@@ -27,40 +29,41 @@ pub trait CommandExecutor: Send + Sync {
 }
 ```
 
-## 标准库执行器 | Standard Executor
+### 示例 1: 使用标准库执行器
 
-默认提供的 `StdCommandExecutor` 使用标准库 `std::process::Command`：
+这是默认的执行器，使用 `std::process::Command`：
 
 ```rust
 use execute::{CommandPool, CommandConfig, StdCommandExecutor};
 use std::sync::Arc;
-use std::time::Duration;
 
 let pool = CommandPool::new();
 let executor = Arc::new(StdCommandExecutor);
 
+// 提交任务
 pool.push_task(CommandConfig::new("echo", vec!["hello".to_string()]));
-pool.start_executor_with_executor(Duration::from_secs(1), executor);
+
+// 启动执行器（使用自定义执行器）
+pool.start_executor_with_executor(std::time::Duration::from_millis(100), executor);
 ```
 
-## 自定义执行器实现 | Custom Executor Implementation
+### 示例 2: 集成 Tokio 异步运行时
 
-### 示例：Tokio 异步执行器
+在同步接口中使用异步功能：
 
 ```rust
 use execute::{CommandConfig, ExecuteError, CommandExecutor};
 use std::process::Output;
 use tokio::process::Command;
 
-pub struct TokioCommandExecutor;
+pub struct TokioExecutor;
 
-impl CommandExecutor for TokioCommandExecutor {
+impl CommandExecutor for TokioExecutor {
     fn execute(&self, config: &CommandConfig) -> Result<Output, ExecuteError> {
-        // 注意：此处为同步 trait，需要使用 block_on 或在异步上下文中调用
+        // 创建运行时来执行异步代码
         let rt = tokio::runtime::Runtime::new()
             .map_err(|e| ExecuteError::Io(std::io::Error::new(
-                std::io::ErrorKind::Other,
-                e
+                std::io::ErrorKind::Other, e
             )))?;
         
         rt.block_on(async {
@@ -71,14 +74,32 @@ impl CommandExecutor for TokioCommandExecutor {
                 cmd.current_dir(dir);
             }
             
-            cmd.output().await
-                .map_err(|e| ExecuteError::Io(e))
+            // 设置环境变量
+            for (key, value) in &config.env.vars {
+                if let Some(val) = value {
+                    cmd.env(key, val);
+                } else {
+                    cmd.env_remove(key);
+                }
+            }
+            
+            cmd.output().await.map_err(ExecuteError::Io)
         })
     }
 }
 ```
 
-### 示例：带超时的异步执行器
+**使用方式**：
+
+```rust
+let pool = CommandPool::new();
+let executor = Arc::new(TokioExecutor);
+
+pool.push_task(CommandConfig::new("sleep", vec!["1".to_string()]));
+pool.start_executor_with_executor(std::time::Duration::from_millis(100), executor);
+```
+
+### 示例 3: 带超时控制的执行器
 
 ```rust
 use execute::{CommandConfig, ExecuteError, CommandExecutor};
@@ -87,24 +108,20 @@ use std::time::Duration;
 use tokio::process::Command;
 use tokio::time::timeout;
 
-pub struct TokioWithTimeoutExecutor;
+pub struct TimeoutExecutor;
 
-impl CommandExecutor for TokioWithTimeoutExecutor {
+impl CommandExecutor for TimeoutExecutor {
     fn execute(&self, config: &CommandConfig) -> Result<Output, ExecuteError> {
         let rt = tokio::runtime::Runtime::new()
             .map_err(|e| ExecuteError::Io(std::io::Error::new(
-                std::io::ErrorKind::Other,
-                e
+                std::io::ErrorKind::Other, e
             )))?;
         
         rt.block_on(async {
             let mut cmd = Command::new(&config.program);
             cmd.args(&config.args);
             
-            if let Some(dir) = &config.working_dir {
-                cmd.current_dir(dir);
-            }
-            
+            // 应用超时
             match config.timeout {
                 Some(dur) => {
                     timeout(dur, cmd.output()).await
@@ -112,8 +129,7 @@ impl CommandExecutor for TokioWithTimeoutExecutor {
                         .map_err(|e| ExecuteError::Io(e))
                 }
                 None => {
-                    cmd.output().await
-                        .map_err(|e| ExecuteError::Io(e))
+                    cmd.output().await.map_err(ExecuteError::Io)
                 }
             }
         })
@@ -121,79 +137,48 @@ impl CommandExecutor for TokioWithTimeoutExecutor {
 }
 ```
 
-## 使用自定义执行器 | Using Custom Executors
+### 性能优化建议
 
-### 基础用法 | Basic Usage
+1. **避免重复创建运行时**：使用线程本地存储或全局运行时
+  
+   ```rust
+   use once_cell::sync::Lazy;
+   
+   static RUNTIME: Lazy<tokio::runtime::Runtime> = Lazy::new(|| {
+       tokio::runtime::Runtime::new().unwrap()
+   });
+   
+   impl CommandExecutor for YourExecutor {
+       fn execute(&self, config: &CommandConfig) -> Result<Output, ExecuteError> {
+           RUNTIME.block_on(async { /* ... */ })
+       }
+   }
+   ```
 
-```rust
-use execute::{CommandPool, CommandConfig};
-use std::sync::Arc;
-use std::time::Duration;
+2. **并发限制**：使用信号量防止资源耗尽
 
-let pool = CommandPool::new();
-let executor = Arc::new(YourCustomExecutor);
+   ```rust
+   pool.start_executor_with_executor_and_limit(
+       Duration::from_millis(100),
+       8,  // 8 个工作线程
+       4,  // 最多同时执行 4 个外部进程
+       executor,
+   );
+   ```
 
-// 启动执行器
-pool.start_executor_with_executor(Duration::from_millis(100), executor);
+3. **选择合适的队列**：
+   - 高并发场景：使用无锁队列 `CommandPoolSeg`
+   - 一般场景：使用标准队列 `CommandPool`
 
-// 添加任务
-pool.push_task(CommandConfig::new("your_command", vec![]));
-```
+   ```rust
+   use execute::CommandPoolSeg;
+   
+   let pool = CommandPoolSeg::new();
+   let executor = Arc::new(YourExecutor);
+   pool.start_executor_with_executor(Duration::from_millis(100), executor);
+   ```
 
-### 使用工作线程数 | With Worker Count
-
-```rust
-let pool = CommandPool::new();
-let executor = Arc::new(YourCustomExecutor);
-
-// 使用 8 个工作线程
-pool.start_executor_with_workers_and_executor(
-    Duration::from_millis(100),
-    8,
-    executor,
-);
-```
-
-### 使用并发限制 | With Concurrency Limit
-
-```rust
-let pool = CommandPool::new();
-let executor = Arc::new(YourCustomExecutor);
-
-// 8 个工作线程，同时执行最多 4 个外部进程
-pool.start_executor_with_executor_and_limit(
-    Duration::from_millis(100),
-    8,
-    4,
-    executor,
-);
-```
-
-## 无锁队列变体 | Lock-free Queue Variant
-
-`CommandPoolSeg` 提供相同的自定义执行器支持，但使用无锁队列实现：
-
-```rust
-use execute::{CommandPoolSeg, CommandConfig};
-use std::sync::Arc;
-use std::time::Duration;
-
-let pool = CommandPoolSeg::new();
-let executor = Arc::new(YourCustomExecutor);
-
-pool.push_task(CommandConfig::new("command", vec![]));
-pool.start_executor_with_executor(Duration::from_millis(100), executor);
-```
-
-## 性能注意事项 | Performance Considerations
-
-1. **同步 trait 的异步实现**：如果使用异步运行时，需要在同步 trait 方法中创建运行时。考虑使用线程本地存储或全局运行时以避免重复创建。
-
-2. **并发限制**：使用信号量限制并发可以防止资源耗尽，特别是处理大量 I/O 密集型命令时。
-
-3. **工作线程数**：根据 CPU 核心数和任务类型调整工作线程数。I/O 密集型任务可以使用更多线程。
-
-## 完整示例 | Complete Example
+### 完整示例
 
 ```rust
 use execute::{CommandPool, CommandConfig, CommandExecutor, ExecuteError};
@@ -201,32 +186,31 @@ use std::process::{Command, Output};
 use std::sync::Arc;
 use std::time::Duration;
 
-// 自定义执行器
 struct CustomExecutor;
 
 impl CommandExecutor for CustomExecutor {
     fn execute(&self, config: &CommandConfig) -> Result<Output, ExecuteError> {
-        // 实现您的执行逻辑：这里给出一个最简同步实现示例
-        println!("Executing: {} {:?}", config.program(), config.args());
-
+        println!("执行：{} {:?}", config.program(), config.args());
+        
         let mut cmd = Command::new(config.program());
         cmd.args(config.args());
+        
         if let Some(dir) = config.working_dir() {
             cmd.current_dir(dir);
         }
-
+        
         cmd.output().map_err(ExecuteError::Io)
     }
 }
- 
+
 fn main() -> Result<(), ExecuteError> {
     let pool = CommandPool::new();
     let executor = Arc::new(CustomExecutor);
-
+    
     // 添加任务
     pool.push_task(CommandConfig::new("echo", vec!["hello".to_string()]));
-    pool.push_task(CommandConfig::new("ls", vec!["-la".to_string()]));
-
+    pool.push_task(CommandConfig::new("date", vec![]));
+    
     // 启动执行器：4 个工作线程，最多 2 个并发
     pool.start_executor_with_executor_and_limit(
         Duration::from_millis(100),
@@ -234,69 +218,135 @@ fn main() -> Result<(), ExecuteError> {
         2,
         executor,
     );
-
+    
     // 等待任务完成
     std::thread::sleep(Duration::from_secs(1));
+    
+    // 优雅关闭
+    pool.shutdown().unwrap();
+    
     Ok(())
 }
 ```
 
+运行此示例：
+```bash
+cargo run --example custom_executor_demo
+```
+
 ---
 
-## 健康检查 | Health Check
+## 健康检查
 
-健康检查功能允许你监控命令池的运行状态。
+健康检查功能用于监控命令池的运行状态，适合集成到监控系统中。
 
-### 健康状态类型
+### 健康状态分类
 
 ```rust
 pub enum HealthStatus {
-    Healthy,
-    Degraded { issues: Vec<String> },
-    Unhealthy { issues: Vec<String> },
+    Healthy,                           // 系统健康
+    Degraded { issues: Vec<String> },  // 系统降级（部分问题）
+    Unhealthy { issues: Vec<String> }, // 系统异常（严重问题）
 }
 ```
 
 ### 使用示例
 
 ```rust
-use execute::{CommandPool, ExecutionConfig, HealthStatus};
+use execute::{CommandPool, PoolConfigBuilder, HealthStatus};
 use std::time::Duration;
 
-let pool = CommandPool::with_config(ExecutionConfig {
-    workers: 4,
-    ..Default::default()
-});
+// 创建带健康检查的命令池
+let pool = PoolConfigBuilder::new()
+    .thread_count(4)
+    .enable_health_check(true)
+    .build()
+    .unwrap();
 
+// 执行一些任务
+for i in 0..10 {
+    pool.push_task(CommandConfig::new("echo", vec![format!("task {}", i)]));
+}
 pool.start_executor();
 
+// 检查健康状态
 let health = pool.health_check();
 
 match health.status {
     HealthStatus::Healthy => {
-        println!("系统健康");
+        println!("✅ 系统健康运行");
     }
     HealthStatus::Degraded { issues } => {
-        println!("系统降级: {:?}", issues);
+        println!("⚠️  系统性能下降:");
+        for issue in issues {
+            println!("   - {}", issue);
+        }
     }
     HealthStatus::Unhealthy { issues } => {
-        println!("系统不健康: {:?}", issues);
+        println!("❌ 系统异常:");
+        for issue in issues {
+            println!("   - {}", issue);
+        }
     }
 }
 
-println!("工作线程: {}/{}", 
+// 查看详细指标
+println!("\n详细指标:");
+println!("  活跃工作线程：{}/{}", 
     health.details.workers_alive,
     health.details.workers_total
 );
+println!("  队列使用率：{:.1}%", 
+    health.details.queue_usage * 100.0
+);
+println!("  长时任务数：{}", 
+    health.details.long_running_tasks
+);
 ```
 
-### 健康指标
+### 健康判定标准
 
-- **workers_alive**: 活跃的工作线程数
-- **workers_total**: 配置的总工作线程数
-- **queue_usage**: 队列使用率 (0.0 - 1.0)
-- **long_running_tasks**: 运行超过 5 分钟的任务数
-- **avg_task_duration**: 平均任务执行时间
+系统会自动检测以下问题：
+
+**降级状态 (Degraded)**:
+- 工作线程死亡超过 25%
+- 队列使用率超过 80%
+- 存在运行超过 5 分钟的任务
+
+**异常状态 (Unhealthy)**:
+- 工作线程死亡超过 50%
+- 队列已满，无法提交新任务
+- 多个关键组件失败
+
+### 集成到监控系统
+
+```rust
+use std::thread;
+use std::time::Duration;
+
+// 定期健康检查
+thread::spawn(move || {
+    loop {
+        let health = pool.health_check();
+        
+        match health.status {
+            HealthStatus::Unhealthy { issues } => {
+                // 发送紧急告警
+                send_alert(&format!("命令池异常：{:?}", issues));
+            }
+            HealthStatus::Degraded { issues } => {
+                // 发送警告
+                send_warning(&format!("命令池降级：{:?}", issues));
+            }
+            _ => {}
+        }
+        
+        thread::sleep(Duration::from_secs(30));
+    }
+});
+```
+
+完整示例：`examples/health_check_demo.rs`
 
 ---
 

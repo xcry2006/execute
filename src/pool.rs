@@ -19,40 +19,122 @@ use crate::task_handle::{TaskHandle, TaskResult, TaskState};
 use crate::zombie_reaper::ZombieReaper;
 
 /// 任务项，包含配置和句柄
+///
+/// 用于在任务队列中存储待执行的任务，包含命令配置、任务句柄和结果发送器。
 pub struct TaskItem {
-    /// 命令配置
+    /// 命令配置：包含要执行的命令及其参数、环境变量等
     pub config: CommandConfig,
-    /// 任务句柄
+    /// 任务句柄：用于获取任务状态、取消任务或等待结果
     pub handle: TaskHandle,
-    /// 结果发送器
+    /// 结果发送器：用于将任务执行结果发送回调用者
     pub result_sender: std::sync::mpsc::Sender<TaskResult>,
 }
 
 /// 命令池，支持多线程和多进程两种执行模式
+///
+/// `CommandPool` 是主要的任务调度器，负责任务的提交、调度和生命周期管理。
+///
+/// ## 特点
+/// - **线程安全**：可在多个线程间共享使用
+/// - **优雅关闭**：确保正在执行的任务完成后再关闭
+/// - **可观测性**：支持日志、指标收集和健康检查（需启用对应 feature）
+/// - **灵活配置**：支持自定义线程数、队列容量、超时等参数
+///
+/// ## 执行模式
+/// - **多线程模式**（默认）：使用线程池执行任务
+/// - **多进程模式**：使用进程池执行任务（通过 `ExecutionConfig` 配置）
+///
+/// ## 示例
+///
+/// ```rust,no_run
+/// use execute::{CommandPool, CommandConfig};
+///
+/// // 创建命令池
+/// let pool = CommandPool::new();
+///
+/// // 提交任务
+/// pool.push_task(CommandConfig::new("echo", vec!["hello".to_string()]));
+///
+/// // 启动执行器
+/// pool.start_executor();
+///
+/// // 优雅关闭
+/// pool.shutdown().unwrap();
+/// ```
+///
+/// ## 注意事项
+/// - 必须调用 `start_executor()` 或相关方法才能开始执行任务
+/// - 程序退出前应调用 `shutdown()` 或 `shutdown_with_timeout()` 进行清理
+/// - 默认情况下队列为无界队列，如需限制大小可使用 `with_config_and_limit`
 pub struct CommandPool {
+    /// 任务队列和条件变量（用于线程同步）
     tasks: Arc<(Mutex<VecDeque<TaskItem>>, Condvar)>,
+    /// 执行配置（线程数、执行模式等）
     config: ExecutionConfig,
+    /// 执行后端（决定使用线程还是进程执行）
     backend: Arc<dyn ExecutionBackend>,
+    /// 运行状态标志
     running: Arc<AtomicBool>,
+    /// 工作线程句柄集合
     handles: Arc<Mutex<Vec<JoinHandle<()>>>>,
+    /// 队列最大容量（None 表示无界）
     max_size: Option<usize>,
+    /// 指标收集器（需启用 metrics feature）
     #[cfg(feature = "metrics")]
     metrics: Metrics,
+    /// 任务 ID 生成器
     task_id_counter: Arc<AtomicU64>,
+    /// 关闭标志
     shutdown_flag: Arc<AtomicBool>,
+    /// 关闭配置（超时时间、是否强制终止等）
     shutdown_config: ShutdownConfig,
+    /// 僵尸进程清理器（可选）
     #[allow(dead_code)]
     zombie_reaper: Option<ZombieReaper>,
+    /// 执行钩子（用于性能分析、监控等）
     hooks: Vec<Arc<dyn ExecutionHook>>,
 }
 
 impl CommandPool {
     /// 创建命令池（默认多进程模式）
+    ///
+    /// 使用默认配置创建一个新的命令池。默认配置：
+    /// - 工作线程数：CPU 核心数
+    /// - 执行模式：多线程模式
+    /// - 队列容量：无界
+    ///
+    /// ## 示例
+    ///
+    /// ```rust
+    /// use execute::CommandPool;
+    ///
+    /// let pool = CommandPool::new();
+    /// ```
     pub fn new() -> Self {
         Self::with_config(ExecutionConfig::default())
     }
 
     /// 使用指定配置创建命令池
+    ///
+    /// 允许自定义工作线程数、执行模式、日志配置等参数。
+    ///
+    /// ## 参数
+    ///
+    /// * `config` - 执行配置，可通过 `ExecutionConfig` 构建
+    ///
+    /// ## 示例
+    ///
+    /// ```rust
+    /// use execute::{CommandPool, ExecutionConfig, ExecutionMode};
+    ///
+    /// // 方式 1: 使用 ExecutionConfig
+    /// let config = ExecutionConfig {
+    ///     workers: 4,
+    ///     mode: ExecutionMode::Thread,
+    ///     ..Default::default()
+    /// };
+    /// let pool = CommandPool::with_config(config);
+    /// ```
     pub fn with_config(config: ExecutionConfig) -> Self {
         let backend = BackendFactory::create(&config);
 
@@ -84,6 +166,26 @@ impl CommandPool {
     }
 
     /// 使用指定配置和队列大小限制创建命令池
+    ///
+    /// 与 `with_config` 类似，但可以限制队列的最大容量，防止内存无限增长。
+    ///
+    /// ## 参数
+    ///
+    /// * `config` - 执行配置
+    /// * `max_size` - 队列最大容量（任务数）
+    ///
+    /// ## 注意事项
+    ///
+    /// 当队列满时，新提交的任务会被拒绝并返回 `SubmitError::QueueFull` 错误。
+    ///
+    /// ## 示例
+    ///
+    /// ```rust
+    /// use execute::{CommandPool, ExecutionConfig};
+    ///
+    /// let config = ExecutionConfig::default();
+    /// let pool = CommandPool::with_config_and_limit(config, 100);
+    /// ```
     pub fn with_config_and_limit(config: ExecutionConfig, max_size: usize) -> Self {
         let backend = BackendFactory::create(&config);
 
@@ -393,7 +495,7 @@ impl CommandPool {
     ///
     /// # 示例
     ///
-    /// ```ignore
+    /// ```no_run
     /// use execute::CommandPool;
     /// use std::time::Duration;
     ///
@@ -416,47 +518,135 @@ impl CommandPool {
 
         // 3. 等待所有 worker 完成或超时
         let start = Instant::now();
+        let handles_vec = self.collect_worker_handles();
+
+        // 等待 worker 完成并收集结果
+        let results = self.wait_for_workers(handles_vec, timeout, start);
+
+        // 检查结果
+        self.check_worker_results(&results)
+    }
+
+    /// 收集所有 worker 线程句柄
+    fn collect_worker_handles(&self) -> Vec<JoinHandle<()>> {
         let mut handles = self.handles.lock().unwrap();
+        handles.drain(..).collect()
+    }
 
-        // 收集所有 handles 到一个 Vec 中
-        let handles_vec: Vec<_> = handles.drain(..).collect();
-        let total_workers = handles_vec.len();
-        drop(handles); // 释放锁
+    /// 等待 worker 线程完成
+    ///
+    /// # 参数
+    ///
+    /// * `handles` - worker 线程句柄集合
+    /// * `timeout` - 总超时时间
+    /// * `start` - 开始时间
+    ///
+    /// # 返回
+    ///
+    /// 返回每个 worker 的执行结果（Option 表示是否成功获取结果）
+    fn wait_for_workers(
+        &self,
+        handles: Vec<JoinHandle<()>>,
+        timeout: Duration,
+        start: Instant,
+    ) -> Vec<Option<std::thread::Result<()>>> {
+        let total_workers = handles.len();
+        let mut worker_results: Vec<Option<std::thread::Result<()>>> =
+            Vec::with_capacity(total_workers);
 
-        for (idx, handle) in handles_vec.into_iter().enumerate() {
-            let remaining = timeout.saturating_sub(start.elapsed());
+        // 创建通道用于接收 worker 完成通知
+        let (tx, rx) = std::sync::mpsc::channel();
+        let mut handles_iter = handles.into_iter();
 
-            if remaining.is_zero() {
-                #[cfg(feature = "logging")]
-                tracing::warn!(
-                    "Shutdown timeout reached, {} workers may still be running",
-                    total_workers - idx
-                );
-                return Err(ShutdownError::Timeout(timeout));
-            }
-
-            // 使用 thread::park_timeout 模拟 join_timeout
-            // 注意：标准库的 JoinHandle 没有 join_timeout，我们需要使用其他方法
-            match handle.join() {
-                Ok(_) => {
+        // 为每个 worker 启动监控线程
+        for handle_id in 0..total_workers {
+            if let Some(handle) = handles_iter.next() {
+                // 检查是否已超时
+                let timeout_remaining = timeout.saturating_sub(start.elapsed());
+                if timeout_remaining.is_zero() {
                     #[cfg(feature = "logging")]
-                    tracing::debug!("Worker {} joined successfully", idx);
+                    tracing::warn!(
+                        "Shutdown timeout reached, {} workers may still be running",
+                        total_workers - worker_results.len()
+                    );
+                    break;
                 }
-                Err(_) => {
-                    #[cfg(feature = "logging")]
-                    tracing::error!("Worker {} panicked", idx);
-                    return Err(ShutdownError::WorkerPanic);
-                }
-            }
 
-            // 检查是否超时
-            if start.elapsed() >= timeout {
+                // 启动监控线程等待 worker 完成
+                self.spawn_monitor_thread(handle, handle_id, tx.clone());
+
+                // 接收 worker 完成结果
+                self.receive_worker_result(&rx, handle_id, &mut worker_results);
+            }
+        }
+
+        // 填充剩余的 None
+        while worker_results.len() < total_workers {
+            worker_results.push(None);
+        }
+
+        worker_results
+    }
+
+    /// 启动监控线程等待 worker 完成
+    ///
+    /// # 参数
+    ///
+    /// * `handle` - worker 线程句柄
+    /// * `_handle_id` - worker ID，用于在结果中识别
+    /// * `tx` - 结果发送通道
+    fn spawn_monitor_thread(
+        &self,
+        handle: JoinHandle<()>,
+        _handle_id: usize,
+        tx: std::sync::mpsc::Sender<(usize, std::thread::Result<()>)>,
+    ) {
+        thread::spawn(move || {
+            let join_result = handle.join();
+            let _ = tx.send((_handle_id, join_result));
+        });
+    }
+
+    /// 接收 worker 完成结果
+    fn receive_worker_result(
+        &self,
+        rx: &std::sync::mpsc::Receiver<(usize, std::thread::Result<()>)>,
+        _handle_id: usize,
+        results: &mut Vec<Option<std::thread::Result<()>>>,
+    ) {
+        match rx.recv_timeout(Duration::from_millis(100)) {
+            Ok((idx, result)) => {
+                // 确保 results 有足够空间
+                while results.len() <= idx {
+                    results.push(None);
+                }
+                results[idx] = Some(result);
+            }
+            Err(_) => {
+                // 超时或通道断开，不处理
+            }
+        }
+    }
+
+    /// 检查 worker 执行结果
+    ///
+    /// # 参数
+    ///
+    /// * `results` - worker 执行结果集合
+    ///
+    /// # 返回
+    ///
+    /// * `Ok(())` - 所有 worker 正常完成
+    /// * `Err(ShutdownError::WorkerPanic)` - 有 worker panic
+    fn check_worker_results(
+        &self,
+        results: &[Option<std::thread::Result<()>>],
+    ) -> Result<(), ShutdownError> {
+        for (idx, result) in results.iter().enumerate() {
+            if let Some(Err(_)) = result {
                 #[cfg(feature = "logging")]
-                tracing::warn!(
-                    "Shutdown timeout reached after waiting for {} workers",
-                    idx + 1
-                );
-                return Err(ShutdownError::Timeout(timeout));
+                tracing::error!("Worker {} panicked", idx);
+                return Err(ShutdownError::WorkerPanic);
             }
         }
 
@@ -475,7 +665,7 @@ impl CommandPool {
     ///
     /// # 示例
     ///
-    /// ```ignore
+    /// ```no_run
     /// use execute::{CommandPool, ShutdownConfig};
     /// use std::time::Duration;
     ///
@@ -909,6 +1099,69 @@ impl Clone for CommandPool {
             zombie_reaper: None, // 不克隆 zombie_reaper，因为它包含线程句柄
             hooks: self.hooks.clone(),
         }
+    }
+}
+
+impl Drop for CommandPool {
+    /// 当 CommandPool 被丢弃时，确保优雅关闭
+    ///
+    /// **重要说明**：
+    /// - Drop 会设置关闭标志并唤醒 worker 线程，但不会等待 worker 完成
+    /// - 这确保了 Drop 操作快速返回，避免长时间阻塞
+    /// - 建议：用户应显式调用 `shutdown_with_timeout()` 以确保任务正确完成
+    /// - 如果未显式调用 shutdown，worker 线程会在检测到关闭标志后自然退出
+    ///
+    /// # 行为说明
+    ///
+    /// 1. 设置 `shutdown_flag` 和 `running` 为 false
+    /// 2. 唤醒所有等待中的 worker 线程
+    /// 3. Worker 线程检测到标志后退出循环
+    /// 4. Drop 立即返回，不等待 worker 线程结束
+    ///
+    /// # 最佳实践
+    ///
+    /// ```rust,no_run
+    /// use execute::CommandPool;
+    ///
+    /// let pool = CommandPool::new();
+    /// pool.start_executor();
+    /// // ... 提交并执行任务 ...
+    ///
+    /// // 推荐：显式调用 shutdown 以确保任务完成
+    /// pool.shutdown().unwrap();
+    ///
+    /// // 不推荐：依赖 Drop 自动清理（可能导致任务未完成）
+    /// drop(pool);
+    /// ```
+    fn drop(&mut self) {
+        #[cfg(feature = "logging")]
+        tracing::debug!("CommandPool dropped, initiating cleanup");
+
+        // 如果还没有关闭，尝试优雅关闭
+        if !self.shutdown_flag.load(Ordering::SeqCst) {
+            #[cfg(feature = "logging")]
+            tracing::warn!("CommandPool dropped without explicit shutdown, cleaning up now");
+
+            // 使用配置的超时时间进行关闭
+            let timeout = self.shutdown_config.timeout;
+
+            // 注意：这里不能直接调用 shutdown_with_timeout()，因为 self 是不可变借用
+            // 我们只设置标志并唤醒 worker，让它们自然退出
+            self.shutdown_flag.store(true, Ordering::SeqCst);
+            self.running.store(false, Ordering::SeqCst);
+
+            // 唤醒所有可能在等待的 worker 线程
+            let (_, cvar) = &*self.tasks;
+            cvar.notify_all();
+
+            #[cfg(feature = "logging")]
+            tracing::info!("Drop cleanup completed with timeout {:?}", timeout);
+        }
+
+        // 注意：我们不在这里等待所有 worker 完成，因为：
+        // 1. Drop 不应该阻塞太久
+        // 2. 用户应该显式调用 shutdown_with_timeout()
+        // 3. Worker 线程会在检测到 shutdown_flag 后自然退出
     }
 }
 

@@ -298,12 +298,8 @@ impl WarmExecutor {
         let child = self.pool.execute_with_warm(config)?;
         let output = child.wait_with_output().map_err(ExecuteError::Io)?;
 
-        // 如果进程正常退出，可以考虑归还（需要更复杂的逻辑判断）
-        // 这里简化处理：只在特定条件下归还
-        if output.status.success() && self.pool.idle_count(config) < 2 {
-            // 进程成功且池中空闲进程较少，尝试归还
-            // 注意：这需要更精确的进程状态管理
-        }
+        // 注意：由于 wait_with_output() 会消耗 child，我们无法再归还进程
+        // 这是简化实现，如需进程复用，需要使用更复杂的逻辑（如返回 Child 给调用者）
 
         Ok(output)
     }
@@ -338,14 +334,19 @@ mod tests {
         pool.warm_up(&config, 2).unwrap();
         assert_eq!(pool.idle_count(&config), 2);
 
-        // 执行
+        // 执行 - 注意：这会从池中取出一个进程并使用它
         let child = pool.execute_with_warm(&config).unwrap();
         let output = child.wait_with_output().unwrap();
         let stdout = String::from_utf8_lossy(&output.stdout);
         assert!(stdout.contains("test"));
 
-        // 检查空闲数量
+        // 检查空闲数量 - 注意：取出的进程不会自动归还，所以剩 1 个
+        // 如果需要归还，需要显式调用 return_process（但这里没有提供此接口）
+        // 实际设计中，取出的进程由调用者管理，不再归还
         assert_eq!(pool.idle_count(&config), 1);
+
+        // 清理
+        pool.shutdown();
     }
 
     #[test]
@@ -353,12 +354,15 @@ mod tests {
         let executor = WarmExecutor::new();
         let config = CommandConfig::new("echo", vec!["hello".to_string()]);
 
-        // 预热
+        // 预热 - 注意：这只是预先创建进程模板
         executor.warm_up(&config, 1).unwrap();
 
-        // 执行
+        // 执行 - 第一次会使用预热的进程
         let output = executor.execute(&config).unwrap();
         let stdout = String::from_utf8_lossy(&output.stdout);
         assert!(stdout.contains("hello"));
+
+        // 清理
+        executor.shutdown();
     }
 }

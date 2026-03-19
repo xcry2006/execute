@@ -55,28 +55,63 @@ execute = "0.1"
 
 如果需要使用特定的功能，可以启用相应的 feature（参见 [功能特性](#功能特性) 章节）。
 
-### 基础使用
+### 基础使用（30 秒快速上手）
+
+最简单的使用方式：
 
 ```rust
 use execute::{CommandPool, CommandConfig};
-use std::time::Duration;
+
+// 创建命令池
+let pool = CommandPool::new();
+
+// 提交任务
+pool.push_task(CommandConfig::new("echo", vec!["Hello, World!".to_string()]));
+
+// 启动执行器
+pool.start_executor();
+
+// 优雅关闭
+pool.shutdown().unwrap();
+```
+
+### 获取任务执行结果
+
+使用 `submit` 方法提交任务并获取结果：
+
+```rust
+use execute::{CommandPool, CommandConfig};
 
 let pool = CommandPool::new();
-pool.push_task(CommandConfig::new("echo", vec!["hello".to_string()]));
-pool.start_executor();
+
+// 提交任务并获取句柄
+let handle = pool.submit(CommandConfig::new("echo", vec!["Hello".to_string()])).unwrap();
+
+// 等待并获取结果
+match handle.wait() {
+    Ok(output) => {
+        println!("输出：{}", String::from_utf8_lossy(&output.stdout));
+        println!("退出码：{}", output.status.code().unwrap_or(-1));
+    }
+    Err(e) => eprintln!("执行失败：{}", e),
+}
+
+pool.shutdown().unwrap();
 ```
 
 ### 使用配置构建器
+
+通过 builder 模式自定义配置：
 
 ```rust
 use execute::{CommandPool, PoolConfigBuilder};
 use std::time::Duration;
 
 let pool = PoolConfigBuilder::new()
-    .thread_count(4)
-    .queue_capacity(100)
-    .enable_metrics(true)
-    .enable_health_check(true)
+    .thread_count(4)           // 4 个工作线程
+    .queue_capacity(100)       // 队列容量 100
+    .enable_metrics(true)      // 启用指标收集
+    .enable_health_check(true) // 启用健康检查
     .build()
     .unwrap();
 ```
@@ -201,13 +236,17 @@ execute = { version = "0.1", features = ["full"] }
 ```rust
 use execute::{CommandPool, LogConfig, LogLevel, LogFormat, LogTarget};
 
-// 配置日志
+// 配置日志系统（建议在程序启动时调用一次）
 let log_config = LogConfig {
     level: LogLevel::Info,
     format: LogFormat::Pretty,  // 或 Json、Compact
     target: LogTarget::Stdout,  // 或 Stderr、File(path)
 };
 
+// 初始化日志系统
+log_config.init().unwrap();
+
+// 创建带日志配置的命令池
 let pool = PoolConfigBuilder::new()
     .with_log_config(log_config)
     .build()
@@ -227,11 +266,13 @@ let pool = PoolConfigBuilder::new()
 2024-01-15T10:30:45.234Z INFO execute::worker: Task completed task_id=1 exit_code=0 duration_ms=110
 ```
 
+**提示**：生产环境建议使用 `Json` 格式便于日志聚合分析。
+
 完整示例：`examples/logging_demo.rs`
 
 ### 2. 优雅关闭
 
-确保正在执行的任务完成后再关闭：
+确保正在执行的任务完成后再关闭，避免数据丢失：
 
 ```rust
 use execute::CommandPool;
@@ -242,24 +283,26 @@ let pool = CommandPool::new();
 // 提交任务
 pool.push_task(CommandConfig::new("sleep", vec!["5".to_string()]));
 
-// 优雅关闭（默认 30 秒超时）
+// 方式 1: 优雅关闭（默认 30 秒超时）
 pool.shutdown().unwrap();
 
-// 或指定超时时间
+// 方式 2: 指定超时时间
 pool.shutdown_with_timeout(Duration::from_secs(60)).unwrap();
 ```
 
-关闭行为：
-- 停止接受新任务
-- 等待所有正在执行的任务完成
-- 超时后强制终止剩余任务
-- 清理所有资源
+**关闭行为**：
+- ✅ 停止接受新任务
+- ✅ 等待所有正在执行的任务完成
+- ⏱️ 超时后强制终止剩余任务
+- 🧹 清理所有资源（线程、进程等）
+
+**最佳实践**：在程序退出时始终调用 `shutdown()` 或 `shutdown_with_timeout()`。
 
 完整示例：`examples/graceful_shutdown.rs`
 
 ### 3. 错误上下文增强
 
-所有错误都包含详细的执行上下文：
+所有错误都包含详细的执行上下文，便于问题排查：
 
 ```rust
 use execute::{CommandPool, CommandConfig, CommandError};
@@ -269,93 +312,134 @@ let config = CommandConfig::new("nonexistent_command", vec![]);
 
 match pool.execute(&config) {
     Err(CommandError::ExecutionFailed { context, source }) => {
-        println!("Task ID: {}", context.task_id);
-        println!("Command: {}", context.command);
-        println!("Working dir: {:?}", context.working_dir);
-        println!("Timestamp: {:?}", context.timestamp);
-        println!("Worker ID: {:?}", context.worker_id);
-        println!("Error: {}", source);
+        println!("❌ 任务执行失败:");
+        println!("   任务 ID: {}", context.task_id);
+        println!("   命令：{}", context.command);
+        println!("   工作目录：{:?}", context.working_dir);
+        println!("   时间戳：{:?}", context.timestamp);
+        println!("   工作线程 ID: {:?}", context.worker_id);
+        println!("   错误原因：{}", source);
     }
     Err(CommandError::Timeout { context, configured_timeout, actual_duration }) => {
-        println!("Task {} timed out", context.task_id);
-        println!("Configured: {:?}, Actual: {:?}", configured_timeout, actual_duration);
+        println!("⏱️ 任务超时:");
+        println!("   任务 ID: {}", context.task_id);
+        println!("   配置超时：{:?}", configured_timeout);
+        println!("   实际运行：{:?}", actual_duration);
     }
     _ => {}
 }
 ```
 
+**错误类型说明**：
+- `ExecutionFailed`: 命令执行失败（如命令不存在、权限不足等）
+- `Timeout`: 任务超时（分为启动超时和执行超时）
+- `Cancelled`: 任务被取消
+- `Shutdown`: 池已关闭，拒绝新任务
+
 完整示例：`examples/error_context_demo.rs`
 
 ### 4. 指标收集
 
-实时收集和查询任务执行指标：
+实时收集和查询任务执行指标，用于性能监控和优化：
 
 ```rust
 use execute::{CommandPool, PoolConfigBuilder};
 
+// 启用指标收集
 let pool = PoolConfigBuilder::new()
     .enable_metrics(true)
     .build()
     .unwrap();
 
 // 执行一些任务...
+for i in 0..10 {
+    pool.push_task(CommandConfig::new("echo", vec![format!("task {}", i)]));
+}
+pool.start_executor();
 
 // 获取指标快照
 let metrics = pool.metrics();
-println!("Tasks submitted: {}", metrics.tasks_submitted);
-println!("Tasks completed: {}", metrics.tasks_completed);
-println!("Tasks failed: {}", metrics.tasks_failed);
-println!("Success rate: {:.2}%", metrics.success_rate * 100.0);
-println!("Avg execution time: {:?}", metrics.avg_execution_time);
-println!("P95 execution time: {:?}", metrics.p95_execution_time);
-println!("P99 execution time: {:?}", metrics.p99_execution_time);
-println!("Tasks queued: {}", metrics.tasks_queued);
-println!("Tasks running: {}", metrics.tasks_running);
+println!("📊 任务统计:");
+println!("   提交数：{}", metrics.tasks_submitted);
+println!("   完成数：{}", metrics.tasks_completed);
+println!("   失败数：{}", metrics.tasks_failed);
+println!("   成功率：{:.2}%", metrics.success_rate * 100.0);
+
+println!("\n⏱️ 执行时间:");
+println!("   平均：{:?}", metrics.avg_execution_time);
+println!("   最小：{:?}", metrics.min_execution_time);
+println!("   最大：{:?}", metrics.max_execution_time);
+println!("   P95: {:?}", metrics.p95_execution_time);
+println!("   P99: {:?}", metrics.p99_execution_time);
+
+println!("\n📈 当前状态:");
+println!("   队列中：{}", metrics.tasks_queued);
+println!("   运行中：{}", metrics.tasks_running);
 ```
 
-可用指标：
-- 任务计数：submitted、completed、failed、cancelled
-- 当前状态：queued、running
-- 执行时间统计：avg、min、max、p50、p95、p99
-- 成功率
+**可用指标**：
+- 📊 任务计数：submitted、completed、failed、cancelled
+- 📈 当前状态：queued、running
+- ⏱️ 执行时间统计：avg、min、max、p50、p95、p99
+- ✅ 成功率
+
+**应用场景**：
+- 集成到 Prometheus/Grafana 监控系统
+- 性能瓶颈分析
+- 告警阈值设置
+
+完整示例：`examples/metrics_demo.rs`
 
 ### 5. 健康检查
 
-监控系统健康状态：
+监控系统健康状态，及时发现和诊断问题：
 
 ```rust
-use execute::{CommandPool, HealthStatus};
+use execute::{CommandPool, PoolConfigBuilder, HealthStatus};
 
+// 启用健康检查
 let pool = PoolConfigBuilder::new()
     .enable_health_check(true)
     .build()
     .unwrap();
 
+// 执行健康检查
 let health = pool.health_check();
 
 match health.status {
     HealthStatus::Healthy => {
-        println!("System is healthy");
+        println!("✅ 系统健康");
     }
     HealthStatus::Degraded { issues } => {
-        println!("System is degraded:");
+        println!("⚠️  系统降级:");
         for issue in issues {
-            println!("  - {}", issue);
+            println!("   - {}", issue);
         }
     }
     HealthStatus::Unhealthy { issues } => {
-        println!("System is unhealthy:");
+        println!("❌ 系统异常:");
         for issue in issues {
-            println!("  - {}", issue);
+            println!("   - {}", issue);
         }
     }
 }
 
-// 查看详细信息
-println!("Workers alive: {}/{}", health.details.workers_alive, health.details.workers_total);
-println!("Queue usage: {:.1}%", health.details.queue_usage * 100.0);
-println!("Long running tasks: {}", health.details.long_running_tasks);
+// 查看详细指标
+println!("\n📊 详细信息:");
+println!("   工作线程：{}/{}", health.details.workers_alive, health.details.workers_total);
+println!("   队列使用率：{:.1}%", health.details.queue_usage * 100.0);
+println!("   长时任务：{}", health.details.long_running_tasks);
 ```
+
+**健康状态判定标准**：
+- ✅ **Healthy**: 所有指标正常
+- ⚠️  **Degraded**: 部分指标异常（如线程数不足、队列积压）
+- ❌ **Unhealthy**: 严重问题（如大量线程死亡、队列满）
+
+**典型应用场景**：
+- Kubernetes 健康探针
+- 负载均衡器健康检查
+- 自动告警系统
 
 完整示例：`examples/health_check_demo.rs`
 

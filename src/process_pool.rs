@@ -163,13 +163,42 @@ impl ProcessPool {
     }
 }
 
+impl Drop for WorkerProcess {
+    fn drop(&mut self) {
+        // 在销毁前尝试优雅关闭子进程
+        // 注意：由于 ChildStdin 没有 close() 方法，我们只能直接 kill
+
+        // 强制终止进程
+        let _ = self.child.kill();
+
+        // 等待进程完全退出，避免僵尸进程
+        let _ = self.child.wait();
+
+        #[cfg(feature = "logging")]
+        tracing::debug!(worker_id = self.id, "WorkerProcess dropped and cleaned up");
+    }
+}
+
 impl Drop for ProcessPool {
     fn drop(&mut self) {
-        // 终止所有工作进程
+        // 终止并清理所有工作进程
         let mut workers = self.workers.lock().unwrap();
         for mut worker in workers.drain(..) {
+            // 先尝试优雅关闭（发送退出信号）
+            // 注意：这里可以改进为发送特定的退出命令到 stdin
+
+            // 强制终止进程
             let _ = worker.child.kill();
+
+            // 等待进程完全退出，避免僵尸进程
+            let _ = worker.child.wait();
+
+            #[cfg(feature = "logging")]
+            tracing::debug!(worker_id = worker.id, "Worker process terminated");
         }
+
+        #[cfg(feature = "logging")]
+        tracing::info!("ProcessPool dropped, all workers cleaned up");
     }
 }
 
